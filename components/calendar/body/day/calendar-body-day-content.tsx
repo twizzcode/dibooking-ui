@@ -15,7 +15,7 @@ export default function CalendarBodyDayContent({ date }: { date: Date }) {
 
       <div className="flex-1 relative">
         {hours.map((hour) => (
-          <div key={hour} className="h-32 border-b border-border/50 group" />
+          <div key={hour} className="h-6 border-b border-border/50 group" />
         ))}
 
         {dayEvents.map((event) => (

@@ -1,5 +1,5 @@
 import { Metadata } from "next";
-import { getBrandBySlug } from "@/lib/brand-data";
+import { prisma } from "@/lib/prisma";
 
 export async function generateMetadata({
   params,
@@ -7,7 +7,11 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const brand = getBrandBySlug(slug);
+  
+  const brand = await prisma.brand.findUnique({
+    where: { slug },
+    select: { name: true, description: true },
+  });
 
   if (!brand) {
     return {
@@ -17,7 +21,7 @@ export async function generateMetadata({
 
   return {
     title: `${brand.name} - Rental & Booking`,
-    description: brand.description,
+    description: brand.description || `Lihat produk dan layanan dari ${brand.name}`,
   };
 }
 

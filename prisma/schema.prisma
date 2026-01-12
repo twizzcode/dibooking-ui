@@ -1,0 +1,229 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  PROVIDER
+  ADMIN
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          Role      @default(USER)
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+  brands        Brand[]
+  bookings      Booking[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  token      String? // Required field
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+// ============================================
+// Dibooking Models
+// ============================================
+
+enum BrandType {
+  VENUE
+  RENTAL
+  BOTH
+  SERVICE
+}
+
+enum ProductType {
+  VENUE
+  EQUIPMENT
+  PACKAGE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PAID
+  REFUNDED
+}
+
+model Brand {
+  id              String    @id @default(cuid())
+  slug            String    @unique
+  name            String
+  description     String?
+  location        String?   // Now optional
+  address         String?   // Now optional
+  city            String?
+  province        String?
+  postalCode      String?
+  phone           String?
+  email           String?
+  website         String?
+  coverImage      String?
+  logoImage       String?
+  rating          Float     @default(0)
+  reviewCount     Int       @default(0)
+  establishedYear Int?
+  type            BrandType @default(RENTAL)
+  operatingHours  Json?     // { monday: { open: "08:00", close: "20:00" }, ... }
+  socialMedia     Json?     // { instagram, facebook, tiktok, youtube, website }
+  isNonProfit     Boolean   @default(false)
+  bankInfo        Json?     // { bankName, accountNumber, accountName }
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  ownerId  String
+  owner    User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  products Product[]
+  bookings Booking[]
+
+  @@index([ownerId])
+  @@index([slug])
+  @@map("brand")
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  description String?
+  features    String[]
+  price       Int
+  priceUnit   String      @default("hari") // "hari", "jam", "event"
+  images      String[]
+  type        ProductType
+  capacity    String?
+  size        String?
+  isActive    Boolean     @default(true)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  brandId      String
+  brand        Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+  availability Availability[]
+
+  @@index([brandId])
+  @@map("product")
+}
+
+model Booking {
+  id            String        @id @default(cuid())
+  bookingCode   String        @unique
+  startDate     DateTime
+  endDate       DateTime
+  totalPrice    Int
+  status        BookingStatus @default(PENDING)
+  customerName  String
+  customerPhone String
+  customerEmail String?
+  customerOrg   String?
+  notes         String?
+  paymentMethod String?
+  paymentStatus PaymentStatus @default(UNPAID)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  brandId   String
+  brand     Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([productId])
+  @@index([brandId])
+  @@index([bookingCode])
+  @@map("booking")
+}
+
+model Availability {
+  id        String   @id @default(cuid())
+  date      DateTime
+  isBlocked Boolean  @default(false)
+  slots     Json?    // Time slots: [{ start: "08:00", end: "10:00", booked: true }]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, date])
+  @@index([productId])
+  @@map("availability")
+}

@@ -1,6 +1,7 @@
 "use client"
 
-import { CalendarRange, ChartLine, ChevronRight, MonitorSmartphone, Settings, type LucideIcon } from "lucide-react"
+import * as React from "react"
+import { CalendarRange, ChartLine, ChevronRight, MonitorSmartphone, Settings, Package, ClipboardList, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 
 import {
@@ -19,7 +20,7 @@ import {
 } from "@/components/ui/sidebar"
 import { usePathname } from "next/navigation"
 
-export function NavMain({
+export const NavMain = React.memo(function NavMain({
   items,
 }: {
   items: {
@@ -39,7 +40,7 @@ export function NavMain({
   return (
     <SidebarGroup>
       <SidebarMenu className="gap-1">
-        {items.map((item) => (
+        {/* {items.map((item) => (
           <Collapsible
             key={item.title}
             asChild
@@ -59,9 +60,9 @@ export function NavMain({
                   {item.items?.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton asChild>
-                        <a href={subItem.url}>
+                        <Link href={subItem.url}>
                           <span>{subItem.title}</span>
-                        </a>
+                        </Link>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
                   ))}
@@ -69,12 +70,44 @@ export function NavMain({
               </CollapsibleContent>
             </SidebarMenuItem>
           </Collapsible>
-        ))}
+        ))} */}
         <SidebarMenuItem>
-          <SidebarMenuButton asChild tooltip="Preview">
-            <Link href="/preview">
+          <SidebarMenuButton isActive={pathname === "/dashboard"} asChild tooltip="Dashboard">
+            <Link href="/dashboard">
+              <ChartLine />
+              <span>Dashboard</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton isActive={pathname === "/dashboard/bookings"} asChild tooltip="Bookings">
+            <Link href="/dashboard/bookings">
+              <ClipboardList />
+              <span>Bookings</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton isActive={pathname === "/dashboard/schedule"} asChild tooltip="Schedule">
+            <Link href="/dashboard/schedule">
               <CalendarRange />
               <span>Schedule</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton isActive={pathname === "/dashboard/products"} asChild tooltip="Products">
+            <Link href="/dashboard/products">
+              <Package />
+              <span>Products</span>
+            </Link>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <SidebarMenuButton isActive={pathname === "/dashboard/settings"} asChild tooltip="Settings">
+            <Link href="/dashboard/settings">
+              <Settings />
+              <span>Settings</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
@@ -86,23 +119,7 @@ export function NavMain({
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/analytics"} asChild tooltip="Analytics">
-            <Link href="/analytics">
-              <ChartLine />
-              <span>Analytics</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/settings"} asChild tooltip="Settings">
-            <Link href="/dashboard/settings" >
-              <Settings />
-              <span>Brand Settings</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
       </SidebarMenu>
     </SidebarGroup>
   )
-}
+})

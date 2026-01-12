@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { MapPin, Star } from "lucide-react";
 import { Product } from "@/types/explore";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface ProductCardProps {
   product: Product;
@@ -14,34 +15,32 @@ interface ProductCardProps {
 export function ProductCard({ product }: ProductCardProps) {
   const router = useRouter();
 
-  // Convert brand name to slug
-  const brandSlug = product.brand.toLowerCase().replace(/\s+/g, "-");
+  // Use brandSlug if available, otherwise convert brand name to slug
+  const brandSlug = product.brandSlug || (typeof product.brand === 'string' ? product.brand.toLowerCase().replace(/\s+/g, "-") : "");
+  // Use product slug if available, otherwise use ID
+  const productSlug = product.slug || product.id;
 
   return (
     <Card 
-      className="overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer"
-      onClick={() => router.push(`/${brandSlug}/${product.id}`)}
+      className="overflow-hidden hover:shadow-lg transition-all duration-300 group cursor-pointer p-0 gap-2"
+      onClick={() => router.push(`/${brandSlug}/${productSlug}`)}
     >
-      <CardHeader className="p-0">
+      <CardHeader className="p-2 pb-0">
         <div className="relative">
-          <div className="aspect-square bg-accent flex items-center justify-center overflow-hidden">
-            <span className="text-muted-foreground text-xs px-3 text-center">
-              {product.name}
-            </span>
-          </div>
-          <div className="absolute top-2 left-2">
-            <Badge
-              variant={
-                product.availability === "available"
-                  ? "default"
-                  : product.availability === "rented"
-                  ? "secondary"
-                  : "destructive"
-              }
-              className="shadow-md text-xs"
-            >
-              {product.tags[0]}
-            </Badge>
+          <div className="aspect-square bg-accent flex items-center justify-center overflow-hidden relative rounded-lg">
+            {product.image ? (
+              <Image
+                src={product.image}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              />
+            ) : (
+              <span className="text-muted-foreground text-xs px-3 text-center">
+                {product.name}
+              </span>
+            )}
           </div>
           <div className="absolute top-2 right-2">
             <Badge
@@ -55,39 +54,30 @@ export function ProductCard({ product }: ProductCardProps) {
       </CardHeader>
       <CardContent className="p-3">
         <div className="space-y-2">
-          <Badge variant="secondary" className="text-[10px] font-medium">
+          <span className="text-[10px] text-muted-foreground uppercase">
             {product.category}
-          </Badge>
-          <h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+          </span>
+          <h3 className="font-bold text-sm line-clamp-2 group-hover:text-primary transition-colors leading-snug capitalize">
             {product.name}
           </h3>
-          <div className="flex items-center gap-1 text-xs">
-            <MapPin className="h-3 w-3 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground truncate">
-              {product.location}
-            </span>
-          </div>
-          <div className="flex items-center gap-1">
-            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-            <span className="font-medium text-xs">{product.rating}</span>
-            <span className="text-xs text-muted-foreground">
-              ({product.reviewCount})
-            </span>
+          
+          {/* Rent Count */}
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <span>{product.rentCount} disewa</span>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="p-3 pt-0 flex items-end justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-[10px] text-muted-foreground mb-0.5">Harga Sewa</p>
-          <p className="text-base font-bold text-primary truncate">
-            Rp {product.price.toLocaleString("id-ID")}
-            <span className="text-xs font-normal text-muted-foreground">
-              /{product.priceUnit}
-            </span>
-          </p>
+      <CardFooter className="p-3 pt-0 flex flex-col gap-2">
+        <div className="w-full flex items-baseline justify-between">
+          <div className="flex-1">
+            <p className="text-lg font-bold text-primary">
+              Rp {product.price.toLocaleString("id-ID")}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground">/{product.priceUnit}</p>
         </div>
-        <Button size="sm" className="shrink-0 h-7 text-xs px-3">
-          Detail
+        <Button size="sm" className="w-full h-8 text-xs font-medium">
+          Lihat Detail & Booking
         </Button>
       </CardFooter>
     </Card>

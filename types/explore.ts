@@ -3,7 +3,9 @@ export type ProductType = "barang" | "tempat";
 export type Product = {
   id: string;
   name: string;
+  slug?: string;
   brand: string;
+  brandSlug?: string;
   category: string;
   type: ProductType;
   location: string;
@@ -12,6 +14,7 @@ export type Product = {
   image: string;
   rating: number;
   reviewCount: number;
+  rentCount: number;
   availability: "available" | "sold" | "rented";
   tags: string[];
 };

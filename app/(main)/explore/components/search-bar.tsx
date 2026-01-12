@@ -18,7 +18,7 @@ export function SearchBar({
   onReset,
 }: SearchBarProps) {
   return (
-    <div className="relative flex-1 max-w-2xl">
+    <div className="relative flex-1">
       <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none z-10" />
       <Input
         placeholder="Cari nama produk, brand, atau kategori..."
@@ -29,7 +29,7 @@ export function SearchBar({
             onSearch();
           }
         }}
-        className="pl-12 pr-24 h-12 text-base"
+        className="pl-12 pr-24 h-12 text-base rounded-full"
       />
       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
         {searchQuery && (
@@ -42,7 +42,7 @@ export function SearchBar({
             <X className="h-4 w-4" />
           </Button>
         )}
-        <Button size="sm" onClick={onSearch} className="h-8">
+        <Button size="sm" onClick={onSearch} className="h-8 rounded-full px-4">
           <Search className="h-4 w-4 mr-1" />
           Cari
         </Button>

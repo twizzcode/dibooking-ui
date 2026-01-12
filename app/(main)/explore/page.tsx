@@ -11,26 +11,74 @@ import {
 } from "@/components/ui/select";
 import { ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import { dummyProducts, brands, categories, locations } from "@/lib/dummy-data";
 import { Product, ProductType } from "@/types/explore";
-import { SearchBar } from "./components/search-bar";
-import { BrandFilterChips } from "./components/brand-filter-chips";
-import { DesktopFilterSidebar } from "./components/desktop-filter-sidebar";
-import { MobileFilterSheet } from "./components/mobile-filter-sheet";
-import { ActiveFilters } from "./components/active-filters";
 import { ProductsGrid } from "./components/products-grid";
 
+interface BrandInfo {
+  name: string;
+  slug: string;
+  location: string;
+  productCount: number;
+}
+
+interface APIProduct {
+  id: string;
+  name: string;
+  description: string | null;
+  features: string[];
+  price: number;
+  priceUnit: string;
+  images: string[];
+  type: "VENUE" | "EQUIPMENT" | "PACKAGE";
+  capacity: string | null;
+  size: string | null;
+  brand: {
+    id: string;
+    name: string;
+    slug: string;
+    location: string;
+  };
+  _count?: {
+    bookings: number;
+  };
+}
+
+// Transform API product to UI product format
+function transformProduct(apiProduct: APIProduct): Product {
+  // Create slug from product name
+  const productSlug = apiProduct.name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+
+  return {
+    id: apiProduct.id,
+    name: apiProduct.name,
+    slug: productSlug,
+    brand: apiProduct.brand.name,
+    brandSlug: apiProduct.brand.slug,
+    category: apiProduct.type === "VENUE" ? "Tempat" : apiProduct.type === "EQUIPMENT" ? "Barang" : "Paket",
+    type: apiProduct.type === "VENUE" ? "tempat" : "barang",
+    location: apiProduct.brand.location || "",
+    price: apiProduct.price,
+    priceUnit: apiProduct.priceUnit,
+    image: apiProduct.images[0] || "",
+    rating: 4.5,
+    reviewCount: apiProduct._count?.bookings || 0,
+    rentCount: apiProduct._count?.bookings || 0,
+    availability: "available",
+    tags: (apiProduct._count?.bookings || 0) > 10 ? ["Populer"] : [],
+  };
+}
+
 export default function ExplorePage() {
-  const [isSearching, setIsSearching] = useState(false);
+  const [isSearching, setIsSearching] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [filteredProducts, setFilteredProducts] = useState<Product[]>(dummyProducts);
-  const [suggestedBrands, setSuggestedBrands] = useState<string[]>([]);
-  
-  // Filter states
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-  const [selectedType, setSelectedType] = useState<ProductType | "all">("all");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
+  const [matchingBrands, setMatchingBrands] = useState<BrandInfo[]>([]);
   const [sortBy, setSortBy] = useState<string>("relevance");
 
   const placeholders = [
@@ -41,131 +89,87 @@ export default function ExplorePage() {
     "Rental Mobil dan Motor",
   ];
 
-  // Get suggested brands based on search query
+  // Fetch products from API
   useEffect(() => {
-    if (searchQuery.trim()) {
-      const matchingBrands = brands.filter((brand) => {
-        const matchesSearch = brand.toLowerCase().includes(searchQuery.toLowerCase());
-        const hasProducts = dummyProducts.some(
-          (product) =>
-            product.brand === brand &&
-            (product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-              product.brand.toLowerCase().includes(searchQuery.toLowerCase()))
-        );
-        return matchesSearch || hasProducts;
-      });
-      setSuggestedBrands(matchingBrands.slice(0, 3));
-    } else {
-      setSuggestedBrands([]);
-    }
-  }, [searchQuery]);
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch('/api/products');
+        const data = await res.json();
+        if (data.products) {
+          // Transform API products to UI format
+          const transformedProducts = data.products.map(transformProduct);
+          setProducts(transformedProducts);
+          setFilteredProducts(transformedProducts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      }
+    };
+    fetchProducts();
+  }, []);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
-    setIsSearching(true);
     applyFilters(query);
   };
 
   const handleSearchSubmit = () => {
-    setIsSearching(true);
     applyFilters(searchQuery);
   };
 
   const handleSearchReset = () => {
     setSearchQuery("");
-    setSuggestedBrands([]);
-    // Tetap di searching state tapi tampilkan semua produk
     applyFilters("");
   };
 
+  const handleQuickFilter = (query: string) => {
+    setSearchQuery(query);
+    applyFilters(query);
+  };
+
   const applyFilters = (query: string = searchQuery) => {
-    let filtered = dummyProducts;
+    let filtered = [...products];
 
     // Search query filter
     if (query.trim()) {
       filtered = filtered.filter(
-        (product) =>
+        (product: Product) =>
           product.name.toLowerCase().includes(query.toLowerCase()) ||
           product.brand.toLowerCase().includes(query.toLowerCase()) ||
           product.category.toLowerCase().includes(query.toLowerCase())
       );
-    }
 
-    // Brand filter
-    if (selectedBrands.length > 0) {
-      filtered = filtered.filter((product) =>
-        selectedBrands.includes(product.brand)
-      );
-    }
-
-    // Category filter
-    if (selectedCategories.length > 0) {
-      filtered = filtered.filter((product) =>
-        selectedCategories.includes(product.category)
-      );
-    }
-
-    // Location filter
-    if (selectedLocations.length > 0) {
-      filtered = filtered.filter((product) =>
-        selectedLocations.includes(product.location)
-      );
-    }
-
-    // Type filter
-    if (selectedType !== "all") {
-      filtered = filtered.filter((product) => product.type === selectedType);
+      // Find matching brands
+      const brandsMap = new Map<string, BrandInfo>();
+      filtered.forEach((product) => {
+        if (!brandsMap.has(product.brand)) {
+          brandsMap.set(product.brand, {
+            name: product.brand,
+            slug: product.brandSlug,
+            location: product.location,
+            productCount: 1,
+          });
+        } else {
+          const brand = brandsMap.get(product.brand)!;
+          brand.productCount++;
+        }
+      });
+      setMatchingBrands(Array.from(brandsMap.values()));
+    } else {
+      setMatchingBrands([]);
     }
 
     // Sort
     if (sortBy === "price-low") {
-      filtered = filtered.sort((a, b) => a.price - b.price);
+      filtered = filtered.sort((a: Product, b: Product) => a.price - b.price);
     } else if (sortBy === "price-high") {
-      filtered = filtered.sort((a, b) => b.price - a.price);
+      filtered = filtered.sort((a: Product, b: Product) => b.price - a.price);
     } else if (sortBy === "rating") {
-      filtered = filtered.sort((a, b) => b.rating - a.rating);
+      filtered = filtered.sort((a: Product, b: Product) => b.rating - a.rating);
     }
 
     setFilteredProducts(filtered);
   };
-
-  const handleBrandToggle = (brand: string) => {
-    setSelectedBrands((prev) =>
-      prev.includes(brand) ? prev.filter((b) => b !== brand) : [...prev, brand]
-    );
-  };
-
-  const handleCategoryToggle = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((c) => c !== category)
-        : [...prev, category]
-    );
-  };
-
-  const handleLocationToggle = (location: string) => {
-    setSelectedLocations((prev) =>
-      prev.includes(location)
-        ? prev.filter((l) => l !== location)
-        : [...prev, location]
-    );
-  };
-
-  const clearFilters = () => {
-    setSelectedBrands([]);
-    setSelectedCategories([]);
-    setSelectedLocations([]);
-    setSelectedType("all");
-    setSortBy("relevance");
-    setFilteredProducts(dummyProducts);
-  };
-
-  const activeFiltersCount =
-    selectedBrands.length +
-    selectedCategories.length +
-    selectedLocations.length +
-    (selectedType !== "all" ? 1 : 0);
 
   if (!isSearching) {
     return (
@@ -204,85 +208,18 @@ export default function ExplorePage() {
   }
 
   return (
-    <main className="w-full mx-auto lg:px-6 py-6">
-      {/* Page Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold mb-2">Cari Produk</h1>
-        <p className="text-muted-foreground">
-          Temukan peralatan atau tempat yang tersedia untuk dipinjam atau disewa
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <div className="mb-8">
-        <div className="flex gap-3 items-center">
-          <SearchBar
-            searchQuery={searchQuery}
-            onSearchChange={handleSearch}
-            onSearch={handleSearchSubmit}
-            onReset={handleSearchReset}
-          />
-          <MobileFilterSheet
-            selectedType={selectedType}
-            selectedBrands={selectedBrands}
-            selectedCategories={selectedCategories}
-            selectedLocations={selectedLocations}
-            brands={brands}
-            categories={categories}
-            locations={locations}
-            activeFiltersCount={activeFiltersCount}
-            onTypeChange={setSelectedType}
-            onBrandToggle={handleBrandToggle}
-            onCategoryToggle={handleCategoryToggle}
-            onLocationToggle={handleLocationToggle}
-            onClearFilters={clearFilters}
-            onApplyFilters={() => applyFilters()}
-          />
-        </div>
-
-        <ActiveFilters
-          selectedBrands={selectedBrands}
-          selectedCategories={selectedCategories}
-          selectedLocations={selectedLocations}
-          selectedType={selectedType}
-          onBrandRemove={handleBrandToggle}
-          onCategoryRemove={handleCategoryToggle}
-          onLocationRemove={handleLocationToggle}
-          onTypeRemove={() => setSelectedType("all")}
-        />
-      </div>
-
-      {/* Main Content with Sidebar */}
-      <div className="flex gap-6">
-        <DesktopFilterSidebar
-          selectedType={selectedType}
-          selectedBrands={selectedBrands}
-          selectedCategories={selectedCategories}
-          selectedLocations={selectedLocations}
-          brands={brands}
-          categories={categories}
-          locations={locations}
-          activeFiltersCount={activeFiltersCount}
-          onTypeChange={setSelectedType}
-          onBrandToggle={handleBrandToggle}
-          onCategoryToggle={handleCategoryToggle}
-          onLocationToggle={handleLocationToggle}
-          onClearFilters={clearFilters}
-          onApplyFilters={() => applyFilters()}
-        />
-
-        {/* Main Content */}
-        <div className="flex-1 min-w-0">
-          {/* Brand Filter Chips - Inside Content Area */}
-          <BrandFilterChips suggestedBrands={suggestedBrands} />
+    <main className="w-full">
+      {/* Main Content */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
+        <div className="mx-auto">
 
           {/* Results Header */}
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-sm text-muted-foreground">
-                Menampilkan <span className="font-semibold text-foreground">{filteredProducts.length}</span> dari{" "}
-                <span className="font-semibold text-foreground">{dummyProducts.length}</span> hasil
-              </p>
+                <p className="text-sm text-muted-foreground">
+                  Menampilkan <span className="font-semibold text-foreground">{filteredProducts.length}</span> dari{" "}
+                  <span className="font-semibold text-foreground">{products.length}</span> hasil
+                </p>
             </div>
             <Select
               value={sortBy}
@@ -306,7 +243,7 @@ export default function ExplorePage() {
           {/* Products Grid */}
           <ProductsGrid
             products={filteredProducts}
-            onClearFilters={clearFilters}
+            onClearFilters={handleSearchReset}
           />
 
           {/* Pagination */}

@@ -48,9 +48,9 @@ function calculateEventPosition(
     endMinutes = 59
   }
 
-  const topPosition = startHour * 128 + (startMinutes / 60) * 128
+  const topPosition = startHour * 24 + (startMinutes / 60) * 24
   const duration = endHour * 60 + endMinutes - (startHour * 60 + startMinutes)
-  const height = (duration / 60) * 128
+  const height = (duration / 60) * 24
 
   return {
     left,
@@ -85,7 +85,7 @@ export default function CalendarEvent({
         <motion.div
           className={cn(
             `px-3 py-1.5 rounded-md truncate cursor-pointer transition-all duration-300 bg-${event.color}-500/10 hover:bg-${event.color}-500/20 border border-${event.color}-500`,
-            !month && 'absolute',
+            !month && 'absolute min-h-[24px]',
             className
           )}
           style={style}

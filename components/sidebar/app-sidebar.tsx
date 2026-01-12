@@ -32,51 +32,32 @@ import {
 } from "@/components/ui/sidebar"
 import { Button } from "../ui/button"
 import Image from "next/image"
+import { authClient } from "@/lib/auth-client"
+import { useRouter } from "next/navigation"
+import Link from "next/link"
+
+interface Brand {
+  id: string
+  name: string
+  logoImage: string | null
+  type: string
+  ownerId: string
+  owner?: {
+    id: string
+    name: string
+    email: string
+    image: string | null
+  }
+}
 
 // This is sample data.
 const data = {
-  user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
-  },
-  teams: [
-    {
-      name: "Acme Inc",
-      logo: GalleryVerticalEnd,
-      plan: "Free Tier",
-    },
-    {
-      name: "Acme Corp.",
-      logo: AudioWaveform,
-      plan: "Startup",
-    },
-    {
-      name: "Evil Corp.",
-      logo: Command,
-      plan: "Free",
-    },
-  ],
   navMain: [
     {
-      title: "Playground",
-      url: "#",
-      icon: SquareTerminal,
+      title: "Settings",
+      url: "/dashboard/settings",
+      icon: Settings2,
       isActive: true,
-      items: [
-        {
-          title: "Setup",
-          url: "#",
-        },
-        {
-          title: "Items",
-          url: "#",
-        },
-        {
-          title: "Admin",
-          url: "#",
-        },
-      ],
     },
   ],
   projects: [
@@ -99,27 +80,124 @@ const data = {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  
-  const admin = true;
+  const router = useRouter()
+  const [session, setSession] = React.useState<any>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [brand, setBrand] = React.useState<Brand | null>(null)
+
+  React.useEffect(() => {
+    const getSession = async () => {
+      const { data } = await authClient.getSession()
+      setSession(data)
+      setLoading(false)
+    }
+    getSession()
+  }, []) // Empty dependency array ensures this only runs once
+
+  // Fetch brand when user is provider
+  React.useEffect(() => {
+    const fetchBrand = async () => {
+      if (!session?.user) return
+      
+      const userRole = session.user.role
+      if (userRole === "PROVIDER" || userRole === "ADMIN") {
+        try {
+          const res = await fetch(`/api/brands?ownerId=${session.user.id}`)
+          const data = await res.json()
+          if (data.brands && data.brands.length > 0) {
+            setBrand(data.brands[0])
+          }
+        } catch (error) {
+          console.error("Error fetching brand:", error)
+        }
+      }
+    }
+    fetchBrand()
+  }, [session])
+
+  const userRole = React.useMemo(() => {
+    return session?.user?.role || "USER"
+  }, [session])
+
+  const isProvider = React.useMemo(() => {
+    return userRole === "PROVIDER" || userRole === "ADMIN"
+  }, [userRole])
+
+  const isAdmin = React.useMemo(() => {
+    return userRole === "ADMIN"
+  }, [userRole])
+
+  if (loading) {
+    return (
+      <Sidebar collapsible="icon" {...props}>
+        <SidebarHeader>
+          <div className="flex items-center gap-3 px-1">
+            <Image
+              src="/favicon.ico"
+              alt="Logo"
+              width={40}
+              height={40}
+              className="shrink-0"
+            />
+            <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
+              <span className="font-bold text-base">Dibooking.id</span>
+              <Link 
+                href="/changelog" 
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                v0.1.0
+              </Link>
+            </div>
+          </div>
+        </SidebarHeader>
+        <SidebarContent>
+          <div className="flex items-center justify-center h-full">
+            <div className="animate-pulse text-muted-foreground">Loading...</div>
+          </div>
+        </SidebarContent>
+        <SidebarRail />
+      </Sidebar>
+    )
+  }
+
+  if (!session) {
+    router.push("/sign-in")
+    return null
+  }
+
+  const user = session.user
 
   return (
     <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="mb-2">
-        <div className="flex items-center gap-2 py-1">
+      <SidebarHeader>
+        <div className="flex items-center gap-3 px-1">
           <Image
             src="/favicon.ico"
             alt="Logo"
-            width={39}
-            height={39}
+            width={40}
+            height={40}
+            className="shrink-0"
           />
-          <span className="font-bold text-base group-data-[collapsible=icon]:hidden">Dibooking.id</span>
+          <div className="flex flex-col gap-1 group-data-[collapsible=icon]:hidden">
+            <span className="font-bold text-base">Dibooking.id</span>
+            <Link 
+              href="/changelog" 
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              v0.1.0
+            </Link>
+          </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <NavProjects projects={data.projects} />
-        {!admin ? (
+        {!isProvider ? (
           <div className="px-2 py-6 w-full">
-            <Button className="w-full" size="lg" >
+            <Button 
+              className="w-full" 
+              size="lg"
+              onClick={() => router.push("/become-provider")}
+            >
               <Store />
               Buat Brand
             </Button>
@@ -128,14 +206,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <>
             <div className="p-2 mt-4">
               <SidebarGroupLabel>Admin Menu</SidebarGroupLabel>
-              <TeamSwitcher teams={data.teams} />
+              <TeamSwitcher 
+                brand={brand} 
+                onAddAdmin={() => {
+                  // TODO: Implement add admin dialog
+                  console.log("Add admin clicked")
+                }}
+              />
             </div>
             <NavMain items={data.navMain} />
           </>
         )}
       </SidebarContent>
       <SidebarFooter>
-        <NavUser user={data.user} />
+        <NavUser user={{
+          name: user.name,
+          email: user.email,
+          avatar: user.image || "",
+        }} />
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

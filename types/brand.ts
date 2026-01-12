@@ -21,11 +21,12 @@ export type BrandProfile = {
   email: string;
   website?: string;
   coverImage: string;
+  logoImage?: string;
   logoInitial: string;
   rating: number;
   reviewCount: number;
-  establishedYear: number;
-  type: "venue" | "rental";
+  establishedYear?: number;
+  type: "venue" | "rental" | "service";
   socialMedia?: {
     facebook?: string;
     instagram?: string;

@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import { ChevronsUpDown, Plus } from "lucide-react"
+import { ChevronsUpDown, Plus, Building2, UserCircle, Crown, Shield } from "lucide-react"
+import Image from "next/image"
 
 import {
   DropdownMenu,
@@ -9,7 +10,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -19,21 +19,52 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
-export function TeamSwitcher({
-  teams,
-}: {
-  teams: {
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role: "OWNER" | "ADMIN"
+  avatar?: string
+}
+
+interface Brand {
+  id: string
+  name: string
+  logoImage: string | null
+  type: string
+  owner?: {
+    id: string
     name: string
-    logo: React.ElementType
-    plan: string
-  }[]
+    email: string
+    image: string | null
+  }
+}
+
+export const TeamSwitcher = React.memo(function TeamSwitcher({
+  brand,
+  onAddAdmin,
+}: {
+  brand: Brand | null
+  onAddAdmin?: () => void
 }) {
   const { isMobile } = useSidebar()
-  const [activeTeam, setActiveTeam] = React.useState(teams[0])
 
-  if (!activeTeam) {
+  if (!brand) {
     return null
   }
+
+  // Convert owner to team member format
+  const members: TeamMember[] = brand.owner
+    ? [
+        {
+          id: brand.owner.id,
+          name: brand.owner.name,
+          email: brand.owner.email,
+          role: "OWNER" as const,
+          avatar: brand.owner.image || undefined,
+        },
+      ]
+    : []
 
   return (
     <SidebarMenu>
@@ -44,48 +75,91 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs opacity-60">{activeTeam.plan}</span>
+              {brand.logoImage ? (
+                <div className="relative aspect-square size-8 rounded-lg overflow-hidden">
+                  <Image
+                    src={brand.logoImage}
+                    alt={brand.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
+                  <Building2 className="size-4" />
+                </div>
+              )}
+              <div className="grid flex-1 text-left text-sm leading-tight ml-2">
+                <span className="truncate font-medium">{brand.name}</span>
+                <span className="truncate text-xs opacity-60">
+                  {brand.type === "VENUE" ? "Venue" : brand.type === "RENTAL" ? "Rental" : "Jasa"}
+                </span>
               </div>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
+            className="w-[--radix-dropdown-menu-trigger-width] min-w-64 rounded-lg"
             align="start"
             side={isMobile ? "bottom" : "right"}
             sideOffset={4}
           >
             <DropdownMenuLabel className="text-muted-foreground text-xs">
-              Teams
+              Tim Brand
             </DropdownMenuLabel>
-            {teams.map((team, index) => (
-              <DropdownMenuItem
-                key={team.name}
-                onClick={() => setActiveTeam(team)}
-                className="gap-2 p-2"
-              >
-                <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
-                </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+            
+            {members.length > 0 ? (
+              <>
+                {members.map((member) => (
+                  <DropdownMenuItem
+                    key={member.id}
+                    className="gap-2 p-2"
+                  >
+                    {member.avatar ? (
+                      <div className="relative size-6 rounded-full overflow-hidden border">
+                        <Image
+                          src={member.avatar}
+                          alt={member.name}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                    ) : (
+                      <div className="flex size-6 items-center justify-center rounded-full border bg-muted">
+                        <UserCircle className="size-4" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">{member.name}</div>
+                      <div className="text-xs text-muted-foreground truncate">{member.email}</div>
+                    </div>
+                    {member.role === "OWNER" ? (
+                      <Crown className="size-4 text-yellow-500" />
+                    ) : (
+                      <Shield className="size-4 text-blue-500" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </>
+            ) : (
+              <DropdownMenuItem disabled className="text-muted-foreground text-xs p-2">
+                Belum ada anggota tim
               </DropdownMenuItem>
-            ))}
+            )}
+
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 p-2">
+            <DropdownMenuItem 
+              className="gap-2 p-2 cursor-pointer"
+              onClick={onAddAdmin}
+            >
               <div className="flex size-6 items-center justify-center rounded-md border bg-transparent">
                 <Plus className="size-4" />
               </div>
-              <div className="text-muted-foreground font-medium">Add team</div>
+              <div className="font-medium">Tambah Admin</div>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
     </SidebarMenu>
   )
-}
+})

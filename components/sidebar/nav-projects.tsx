@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
   Folder,
   Forward,
@@ -18,7 +19,7 @@ import {
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-export function NavProjects({
+export const NavProjects = React.memo(function NavProjects({
   projects,
 }: {
   projects: {
@@ -74,4 +75,4 @@ export function NavProjects({
       </SidebarMenu>
     </SidebarGroup>
   )
-}
+})
