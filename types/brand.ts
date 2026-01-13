@@ -25,6 +25,8 @@ export type BrandProfile = {
   logoInitial: string;
   rating: number;
   reviewCount: number;
+  transactionCount?: number;
+  followerCount?: number;
   establishedYear?: number;
   type: "venue" | "rental" | "service";
   socialMedia?: {

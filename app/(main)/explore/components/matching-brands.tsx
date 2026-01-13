@@ -19,7 +19,7 @@ export function MatchingBrands({ brands }: MatchingBrandsProps) {
   return (
     <div className="mb-6">
       <p className="text-sm font-medium mb-3">Brand yang ditemukan:</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {brands.map((brand) => (
           <Link
             key={brand.slug}

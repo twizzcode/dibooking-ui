@@ -10,16 +10,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ChevronRight } from "lucide-react";
-import { useState, useEffect } from "react";
-import { Product, ProductType } from "@/types/explore";
+import { useMemo, useState, useEffect } from "react";
+import { Product } from "@/types/explore";
 import { ProductsGrid } from "./components/products-grid";
-
-interface BrandInfo {
-  name: string;
-  slug: string;
-  location: string;
-  productCount: number;
-}
+import { useSearchParams } from "next/navigation";
+import { MatchingBrands } from "./components/matching-brands";
 
 interface APIProduct {
   id: string;
@@ -74,11 +69,11 @@ function transformProduct(apiProduct: APIProduct): Product {
 }
 
 export default function ExplorePage() {
+  const searchParams = useSearchParams();
   const [isSearching, setIsSearching] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
-  const [matchingBrands, setMatchingBrands] = useState<BrandInfo[]>([]);
   const [sortBy, setSortBy] = useState<string>("relevance");
 
   const placeholders = [
@@ -108,23 +103,32 @@ export default function ExplorePage() {
     fetchProducts();
   }, []);
 
+  useEffect(() => {
+    const query = searchParams.get("q") || "";
+    if (query !== searchQuery) {
+      setSearchQuery(query);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (products.length === 0) return;
+    const timer = setTimeout(() => {
+      applyFilters(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery, products, sortBy]);
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     applyFilters(query);
   };
 
-  const handleSearchSubmit = () => {
-    applyFilters(searchQuery);
-  };
-
   const handleSearchReset = () => {
     setSearchQuery("");
     applyFilters("");
-  };
-
-  const handleQuickFilter = (query: string) => {
-    setSearchQuery(query);
-    applyFilters(query);
   };
 
   const applyFilters = (query: string = searchQuery) => {
@@ -139,24 +143,6 @@ export default function ExplorePage() {
           product.category.toLowerCase().includes(query.toLowerCase())
       );
 
-      // Find matching brands
-      const brandsMap = new Map<string, BrandInfo>();
-      filtered.forEach((product) => {
-        if (!brandsMap.has(product.brand)) {
-          brandsMap.set(product.brand, {
-            name: product.brand,
-            slug: product.brandSlug,
-            location: product.location,
-            productCount: 1,
-          });
-        } else {
-          const brand = brandsMap.get(product.brand)!;
-          brand.productCount++;
-        }
-      });
-      setMatchingBrands(Array.from(brandsMap.values()));
-    } else {
-      setMatchingBrands([]);
     }
 
     // Sort
@@ -170,6 +156,36 @@ export default function ExplorePage() {
 
     setFilteredProducts(filtered);
   };
+
+  const relatedBrands = useMemo(() => {
+    const query = searchQuery.trim();
+    if (!query) return [];
+
+    const brandMap = new Map<
+      string,
+      { name: string; slug: string; location: string; productCount: number }
+    >();
+
+    filteredProducts.forEach((product) => {
+      const slug = product.brandSlug || "";
+      const key = slug || product.brand;
+      const existing = brandMap.get(key);
+      if (existing) {
+        existing.productCount += 1;
+      } else {
+        brandMap.set(key, {
+          name: product.brand,
+          slug,
+          location: product.location,
+          productCount: 1,
+        });
+      }
+    });
+
+    return Array.from(brandMap.values())
+      .sort((a, b) => b.productCount - a.productCount)
+      .slice(0, 3);
+  }, [filteredProducts, searchQuery]);
 
   if (!isSearching) {
     return (
@@ -212,6 +228,11 @@ export default function ExplorePage() {
       {/* Main Content */}
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6">
         <div className="mx-auto">
+          {relatedBrands.length > 0 && (
+            <div className="mb-6">
+              <MatchingBrands brands={relatedBrands} />
+            </div>
+          )}
 
           {/* Results Header */}
           <div className="flex items-center justify-between mb-6">

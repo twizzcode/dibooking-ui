@@ -3,11 +3,12 @@
 import { notFound } from "next/navigation";
 import { BrandHeader } from "./components/brand-header";
 import { BrandSidebar } from "./components/brand-sidebar";
-import { VenueItemCard } from "./components/venue-item-card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { ProductCard } from "@/app/(main)/explore/components/product-card";
+import { Product as ExploreProduct } from "@/types/explore";
 
 interface Product {
   id: string;
@@ -41,6 +42,9 @@ interface Brand {
   operatingHours: any;
   socialMedia: any;
   products: Product[];
+  _count?: {
+    bookings: number;
+  };
   owner: {
     id: string;
     name: string;
@@ -116,6 +120,50 @@ export default function BrandPage({ params }: BrandPageProps) {
     size: product.size || undefined,
   }));
 
+  const toProductCard = (product: Product): ExploreProduct => {
+    const productSlug = product.name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+
+    return {
+      id: product.id,
+      name: product.name,
+      slug: productSlug,
+      brand: brand.name,
+      brandSlug: brand.slug,
+      category:
+        product.type === "VENUE"
+          ? "Tempat"
+          : product.type === "EQUIPMENT"
+          ? "Barang"
+          : "Paket",
+      type: product.type === "VENUE" ? "tempat" : "barang",
+      location: brand.location,
+      price: product.price,
+      priceUnit: product.priceUnit,
+      image: product.images[0] || "",
+      rating: brand.rating,
+      reviewCount: brand.reviewCount,
+      rentCount: 0,
+      availability: "available",
+      tags: [],
+    };
+  };
+
+  const productCards = brand.products.map(toProductCard);
+  const venueProducts = brand.products
+    .filter((product) => product.type === "VENUE")
+    .map(toProductCard);
+  const equipmentProducts = brand.products
+    .filter((product) => product.type === "EQUIPMENT")
+    .map(toProductCard);
+  const packageProducts = brand.products
+    .filter((product) => product.type === "PACKAGE")
+    .map(toProductCard);
+
   // Transform brand to match component props
   const brandData = {
     slug: brand.slug,
@@ -131,6 +179,8 @@ export default function BrandPage({ params }: BrandPageProps) {
     logoInitial: brand.name.charAt(0).toUpperCase(),
     rating: brand.rating,
     reviewCount: brand.reviewCount,
+    transactionCount: brand._count?.bookings || 0,
+    followerCount: brand.reviewCount || 0,
     establishedYear: brand.establishedYear || undefined,
     type: brand.type.toLowerCase() as "venue" | "rental" | "service",
     operatingHours: brand.operatingHours || {},
@@ -138,18 +188,14 @@ export default function BrandPage({ params }: BrandPageProps) {
     items,
   };
 
-  const venueItems = items.filter((item) => item.type === "venue");
-  const equipmentItems = items.filter((item) => item.type === "equipment");
-  const packageItems = items.filter((item) => item.type === "package");
-
   return (
     <div className="min-h-screen pb-12">
       {/* Header */}
       <BrandHeader brand={brandData} />
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-8">
-        <div className="flex flex-col-reverse lg:flex-row gap-6">\n          {/* Main Content Area */}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col-reverse lg:flex-row gap-6">
           {/* Main Content Area */}
           <div className="flex-1 min-w-0">
             {/* Navigation Tabs */}
@@ -158,17 +204,17 @@ export default function BrandPage({ params }: BrandPageProps) {
                 <TabsTrigger value="all">
                   All Items
                 </TabsTrigger>
-                {venueItems.length > 0 && (
+                {venueProducts.length > 0 && (
                   <TabsTrigger value="venues">
                     Venues
                   </TabsTrigger>
                 )}
-                {equipmentItems.length > 0 && (
+                {equipmentProducts.length > 0 && (
                   <TabsTrigger value="equipment">
                     Equipment
                   </TabsTrigger>
                 )}
-                {packageItems.length > 0 && (
+                {packageProducts.length > 0 && (
                   <TabsTrigger value="packages">
                     Packages
                   </TabsTrigger>
@@ -181,14 +227,14 @@ export default function BrandPage({ params }: BrandPageProps) {
                   <div>
                     <h2 className="text-xl font-semibold">Available for Rent</h2>
                     <p className="text-sm text-muted-foreground">
-                      Showing {items.length} items
+                      Showing {productCards.length} items
                     </p>
                   </div>
                 </div>
-                {items.length > 0 ? (
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    {items.map((item) => (
-                      <VenueItemCard key={item.id} item={item} />
+                {productCards.length > 0 ? (
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                    {productCards.map((product) => (
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
                 ) : (
@@ -199,57 +245,57 @@ export default function BrandPage({ params }: BrandPageProps) {
               </TabsContent>
 
               {/* Venues */}
-              {venueItems.length > 0 && (
+              {venueProducts.length > 0 && (
                 <TabsContent value="venues" className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-semibold">Venues</h2>
                       <p className="text-sm text-muted-foreground">
-                        Showing {venueItems.length} venues
+                        Showing {venueProducts.length} venues
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    {venueItems.map((item) => (
-                      <VenueItemCard key={item.id} item={item} />
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                    {venueProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
                 </TabsContent>
               )}
 
               {/* Equipment */}
-              {equipmentItems.length > 0 && (
+              {equipmentProducts.length > 0 && (
                 <TabsContent value="equipment" className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-semibold">Equipment</h2>
                       <p className="text-sm text-muted-foreground">
-                        Showing {equipmentItems.length} items
+                        Showing {equipmentProducts.length} items
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    {equipmentItems.map((item) => (
-                      <VenueItemCard key={item.id} item={item} />
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                    {equipmentProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
                 </TabsContent>
               )}
 
               {/* Packages */}
-              {packageItems.length > 0 && (
+              {packageProducts.length > 0 && (
                 <TabsContent value="packages" className="space-y-6">
                   <div className="flex items-center justify-between">
                     <div>
                       <h2 className="text-xl font-semibold">Packages</h2>
                       <p className="text-sm text-muted-foreground">
-                        Showing {packageItems.length} packages
+                        Showing {packageProducts.length} packages
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                    {packageItems.map((item) => (
-                      <VenueItemCard key={item.id} item={item} />
+                  <div className="grid grid-cols-2 xl:grid-cols-3 gap-4">
+                    {packageProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} />
                     ))}
                   </div>
                 </TabsContent>

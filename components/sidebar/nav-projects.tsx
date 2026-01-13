@@ -28,8 +28,24 @@ export const NavProjects = React.memo(function NavProjects({
     icon: LucideIcon
   }[]
 }) {
-
   const pathname = usePathname();
+  const staticSegments = React.useMemo(() => {
+    return new Set([
+      "explore",
+      "my-bookings",
+      "blog",
+      "become-provider",
+      "dashboard",
+      "changelog",
+      "calender",
+    ])
+  }, [])
+
+  const isSlugRoute = React.useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean)
+    if (segments.length === 0 || segments.length > 2) return false
+    return !staticSegments.has(segments[0])
+  }, [pathname, staticSegments])
 
   return (
     <SidebarGroup>
@@ -37,7 +53,15 @@ export const NavProjects = React.memo(function NavProjects({
       <SidebarMenu className="gap-1">
         {projects.map((item) => (
           <SidebarMenuItem key={item.name}>
-            <SidebarMenuButton isActive={pathname === item.url} tooltip={item.name} asChild>
+            <SidebarMenuButton
+              isActive={
+                pathname === item.url ||
+                (item.url === "/explore" &&
+                  (pathname.startsWith("/explore/") || isSlugRoute))
+              }
+              tooltip={item.name}
+              asChild
+            >
               <Link href={item.url}>
                 <item.icon />
                 <span>{item.name}</span>
