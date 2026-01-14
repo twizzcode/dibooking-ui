@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { MapPin, CheckCircle } from "lucide-react";
 import { Owner } from "@/types/product-detail";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface OwnerInfoProps {
   owner: Owner;
@@ -14,6 +15,9 @@ interface OwnerInfoProps {
 
 export function OwnerInfo({ owner, brandSlug }: OwnerInfoProps) {
   const router = useRouter();
+  const isImageAvatar =
+    typeof owner.avatar === "string" &&
+    (owner.avatar.startsWith("http") || owner.avatar.startsWith("/"));
 
   return (
     <Card>
@@ -21,15 +25,25 @@ export function OwnerInfo({ owner, brandSlug }: OwnerInfoProps) {
         <div className="flex items-start gap-4">
           {/* Avatar */}
           <div className="flex-shrink-0">
-            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold">
-              {owner.avatar}
-            </div>
+            {isImageAvatar ? (
+              <Image
+                src={owner.avatar}
+                alt={owner.name}
+                width={64}
+                height={64}
+                className="h-16 w-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold">
+                {owner.avatar || owner.name?.slice(0, 1)}
+              </div>
+            )}
           </div>
 
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-lg">{owner.name}</h3>
+              <h3 className="font-semibold text-lg capitalize">{owner.name}</h3>
               {owner.verified && (
                 <CheckCircle className="h-5 w-5 text-blue-500" />
               )}

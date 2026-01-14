@@ -87,27 +87,15 @@ export default function ProductsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Produk & Layanan</h1>
-              <p className="text-muted-foreground">
-                Kelola produk, venue, dan peralatan yang tersedia untuk disewakan
-              </p>
-            </div>
+      {/* Content Area */}
+      <div className="flex-1 overflow-auto">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 space-y-6">
+          <div className="flex items-center justify-end">
             <Button onClick={() => router.push("/dashboard/products/add")}>
               <Plus className="h-4 w-4 mr-2" />
               Tambah Produk
             </Button>
           </div>
-        </div>
-      </div>
-
-      {/* Content Area */}
-      <div className="flex-1 overflow-auto">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 space-y-6">
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card className="p-4">

@@ -9,6 +9,7 @@ import { use, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { ProductCard } from "@/app/(main)/explore/components/product-card";
 import { Product as ExploreProduct } from "@/types/explore";
+import { Footer } from "@/components/home/footer";
 
 interface Product {
   id: string;
@@ -194,7 +195,7 @@ export default function BrandPage({ params }: BrandPageProps) {
       <BrandHeader brand={brandData} />
 
       {/* Main Content */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col-reverse lg:flex-row gap-6">
           {/* Main Content Area */}
           <div className="flex-1 min-w-0">
@@ -327,6 +328,7 @@ export default function BrandPage({ params }: BrandPageProps) {
           </aside>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

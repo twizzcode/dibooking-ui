@@ -133,13 +133,15 @@ Provider's business entity.
 | slug | String | URL-friendly identifier (unique) |
 | name | String | Brand name |
 | description | String? | About the brand |
-| location | String | City/area |
-| address | String | Full address |
-| type | BrandType | VENUE, RENTAL, SERVICE |
+| location | String? | City/area |
+| address | String? | Full address |
+| type | BrandType | VENUE, RENTAL, BOTH, SERVICE |
 | logoImage | String? | Logo URL (R2) |
 | coverImage | String? | Cover photo URL (R2) |
 | operatingHours | Json? | Weekly schedule |
 | socialMedia | Json? | Social links |
+| plan | Plan | FREE, BASIC, PRO (default: FREE) |
+| settings | Json? | booking_mode, pricing_mode, duration_mode, etc |
 | ownerId | String | FK to User |
 
 #### Product
@@ -154,7 +156,8 @@ Items available for booking.
 | price | Int | Price in IDR |
 | priceUnit | String | "hari", "jam", "event" |
 | images | String[] | Image URLs (R2) |
-| type | ProductType | VENUE, EQUIPMENT, PACKAGE |
+| type | ProductType | SPACE, ITEM |
+| stock | Int? | Required if type=ITEM |
 | capacity | String? | For venues |
 | brandId | String | FK to Brand |
 
@@ -168,13 +171,34 @@ Reservation records.
 | startDate | DateTime | Booking start |
 | endDate | DateTime | Booking end |
 | totalPrice | Int | Calculated price |
-| status | BookingStatus | PENDING, CONFIRMED, COMPLETED, CANCELLED |
+| status | BookingStatus | PENDING, APPROVED, REJECTED, CANCELED |
 | paymentStatus | PaymentStatus | UNPAID, PAID, REFUNDED |
 | customerName | String | Booker name |
 | customerPhone | String | Contact phone |
-| productId | String | FK to Product |
 | brandId | String | FK to Brand |
 | userId | String? | FK to User (if logged in) |
+
+#### BookingLine
+Line items for a booking.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | CUID |
+| bookingId | String | FK to Booking |
+| productId | String | FK to Product |
+| quantity | Int | Item quantity (SPACE must be 1) |
+
+#### BookingDocument
+PDF documents attached to a booking.
+
+| Field | Type | Description |
+|-------|------|-------------|
+| id | String | CUID |
+| bookingId | String | FK to Booking |
+| fileUrl | String | Storage URL |
+| fileName | String | Original name |
+| mimeType | String | application/pdf |
+| uploadedBy | String? | FK to User |
 
 ### Enums
 
@@ -188,20 +212,26 @@ enum Role {
 enum BrandType {
   VENUE     // Physical venues
   RENTAL    // Equipment rental
+  BOTH      // Space + item
   SERVICE   // Service providers
 }
 
+enum Plan {
+  FREE
+  BASIC
+  PRO
+}
+
 enum ProductType {
-  VENUE
-  EQUIPMENT
-  PACKAGE
+  SPACE
+  ITEM
 }
 
 enum BookingStatus {
   PENDING    // Waiting confirmation
-  CONFIRMED  // Approved by provider
-  COMPLETED  // Booking finished
-  CANCELLED  // Cancelled
+  APPROVED   // Approved by provider
+  REJECTED   // Rejected by provider
+  CANCELED   // Cancelled
 }
 
 enum PaymentStatus {
@@ -283,7 +313,7 @@ GET /api/brands
 Query params:
   - ownerId: string (filter by owner)
   - slug: string
-  - type: string (VENUE, RENTAL, SERVICE)
+  - type: string (VENUE, RENTAL, BOTH, SERVICE)
   - limit: number (default 20)
   - offset: number (default 0)
 ```
@@ -300,16 +330,18 @@ POST /api/brands
 Body: {
   name: string (required)
   slug: string (required, unique)
-  location: string (required)
-  address: string (required)
+  location?: string
+  address?: string
   description?: string
   phone?: string
   email?: string
-  type?: "VENUE" | "RENTAL" | "SERVICE"
+  type?: "VENUE" | "RENTAL" | "BOTH" | "SERVICE"
   logoImage?: string (R2 URL)
   operatingHours?: object
   socialMedia?: object
 }
+Notes:
+  - plan defaults to FREE on create (cannot be set by this endpoint)
 ```
 
 #### Update Brand

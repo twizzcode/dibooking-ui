@@ -47,6 +47,10 @@ export async function GET(request: NextRequest) {
               name: true,
               slug: true,
               location: true,
+              logoImage: true,
+              phone: true,
+              email: true,
+              address: true,
             },
           },
           _count: {
@@ -127,15 +131,19 @@ export async function POST(request: NextRequest) {
       features,
       price,
       priceUnit,
+      rentalMode,
+      loanDocumentUrl,
+      loanDocumentRequired,
       images,
       type,
       capacity,
       size,
+      stock,
       brandId,
     } = body;
 
     // Validate required fields
-    if (!name || !price || !brandId || !type) {
+    if (!name || price === undefined || price === null || !brandId || !type) {
       return NextResponse.json(
         { error: "Missing required fields: name, price, brandId, type" },
         { status: 400 }
@@ -168,10 +176,14 @@ export async function POST(request: NextRequest) {
         features: features || [],
         price,
         priceUnit: priceUnit || "hari",
+        rentalMode: rentalMode || "RENT",
+        loanDocumentUrl: loanDocumentUrl || null,
+        loanDocumentRequired: loanDocumentRequired || false,
         images: images || [],
         type: type.toUpperCase(),
         capacity,
         size,
+        stock,
         brandId,
       },
       include: {

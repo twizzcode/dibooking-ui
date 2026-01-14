@@ -30,8 +30,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate folder path (prevent path traversal)
-    const allowedFolders = ["brands", "products", "avatars", "uploads"];
-    const safeFolder = allowedFolders.includes(folder) ? folder : "uploads";
+    const normalizedFolder = folder
+      .toLowerCase()
+      .replace(/[^a-z0-9/-]/g, "")
+      .replace(/\/+/g, "/")
+      .replace(/^\/|\/$/g, "");
+
+    const isAllowed =
+      normalizedFolder === "uploads" ||
+      normalizedFolder === "avatars" ||
+      normalizedFolder === "products" ||
+      /^brand\/[a-z0-9-]+\/(logo|banner)$/.test(normalizedFolder) ||
+      /^brand\/[a-z0-9-]+\/products\/[a-z0-9-]+\/(images|documents)$/.test(
+        normalizedFolder
+      );
+
+    const safeFolder = isAllowed ? normalizedFolder : "uploads";
 
     // Upload and optimize
     const result: UploadResult = await uploadImage(file, safeFolder);
@@ -59,9 +73,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};

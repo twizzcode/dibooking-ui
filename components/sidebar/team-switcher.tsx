@@ -32,6 +32,7 @@ interface Brand {
   name: string
   logoImage: string | null
   type: string
+  plan?: "FREE" | "BASIC" | "PRO" | null
   owner?: {
     id: string
     name: string
@@ -52,6 +53,20 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
   if (!brand) {
     return null
   }
+
+  const brandInitials = brand.name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((word) => word[0] ?? "")
+    .join("")
+    .toUpperCase()
+
+  const planLabel = brand.plan === "BASIC"
+    ? "Basic"
+    : brand.plan === "PRO"
+    ? "Pro"
+    : "Free Tier"
 
   // Convert owner to team member format
   const members: TeamMember[] = brand.owner
@@ -85,14 +100,14 @@ export const TeamSwitcher = React.memo(function TeamSwitcher({
                   />
                 </div>
               ) : (
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Building2 className="size-4" />
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg text-xs font-semibold">
+                  {brandInitials || <Building2 className="size-4" />}
                 </div>
               )}
               <div className="grid flex-1 text-left text-sm leading-tight ml-2">
-                <span className="truncate font-medium">{brand.name}</span>
+                <span className="truncate font-medium capitalize">{brand.name}</span>
                 <span className="truncate text-xs opacity-60">
-                  {brand.type === "VENUE" ? "Venue" : brand.type === "RENTAL" ? "Rental" : "Jasa"}
+                  {planLabel}
                 </span>
               </div>
               <ChevronsUpDown className="ml-auto" />

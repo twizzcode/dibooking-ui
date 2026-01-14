@@ -22,6 +22,7 @@ import { usePathname } from "next/navigation"
 
 export const NavMain = React.memo(function NavMain({
   items,
+  brandSlug,
 }: {
   items: {
     title: string
@@ -33,9 +34,14 @@ export const NavMain = React.memo(function NavMain({
       url: string
     }[]
   }[]
+  brandSlug?: string | null
 }) {
 
   const pathname = usePathname();
+  const previewHref = brandSlug ? `/${brandSlug}` : "/preview";
+  const isPreviewActive = brandSlug
+    ? pathname === `/${brandSlug}` || pathname.startsWith(`/${brandSlug}/`)
+    : pathname === "/preview";
 
   return (
     <SidebarGroup>
@@ -80,42 +86,42 @@ export const NavMain = React.memo(function NavMain({
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/bookings"} asChild tooltip="Bookings">
+          <SidebarMenuButton isActive={pathname === "/dashboard/bookings"} asChild tooltip="Booking">
             <Link href="/dashboard/bookings">
               <ClipboardList />
-              <span>Bookings</span>
+              <span>Booking</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/schedule"} asChild tooltip="Schedule">
+          <SidebarMenuButton isActive={pathname === "/dashboard/schedule"} asChild tooltip="Kalender">
             <Link href="/dashboard/schedule">
               <CalendarRange />
-              <span>Schedule</span>
+              <span>Kalender</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/products"} asChild tooltip="Products">
+          <SidebarMenuButton isActive={pathname === "/dashboard/products"} asChild tooltip="Produk">
             <Link href="/dashboard/products">
               <Package />
-              <span>Products</span>
+              <span>Produk</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton isActive={pathname === "/dashboard/settings"} asChild tooltip="Settings">
+          <SidebarMenuButton isActive={pathname === "/dashboard/settings"} asChild tooltip="Pengaturan">
             <Link href="/dashboard/settings">
               <Settings />
-              <span>Settings</span>
+              <span>Pengaturan</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <SidebarMenuButton asChild tooltip="Preview">
-            <Link href="/preview">
+          <SidebarMenuButton isActive={isPreviewActive} asChild tooltip="Pratinjau">
+            <Link href={previewHref}>
               <MonitorSmartphone />
-              <span>Preview</span>
+              <span>Pratinjau</span>
             </Link>
           </SidebarMenuButton>
         </SidebarMenuItem>

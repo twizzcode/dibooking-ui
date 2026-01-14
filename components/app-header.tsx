@@ -4,17 +4,19 @@ import { Separator } from "@/components/ui/separator";
 import { ModeToggle } from "@/components/theme-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Instagram, MessageCircleQuestionMark, Search, Bookmark, ShoppingCart } from "lucide-react";
+import { Instagram, MessageCircleQuestionMark, Search, Bookmark, ShoppingCart, UserCircle, X, User } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
+import { authClient } from "@/lib/auth-client";
 
 export function AppHeader() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const lastQueryRef = useRef<string>("");
+  const [user, setUser] = useState<{ name?: string; email?: string; image?: string } | null>(null);
 
   const popularSearches = [
     "Kamera DSLR",
@@ -32,6 +34,14 @@ export function AppHeader() {
     lastQueryRef.current = query;
     setSearchQuery(query);
   }, [searchParams]);
+
+  useEffect(() => {
+    const getSession = async () => {
+      const { data } = await authClient.getSession();
+      setUser(data?.user ?? null);
+    };
+    getSession();
+  }, []);
 
   useEffect(() => {
     const trimmedQuery = searchQuery.trim();
@@ -71,11 +81,18 @@ export function AppHeader() {
               <MessageCircleQuestionMark className="h-4 w-4" />
               <span className="ml-2 text-xs">Bantuan</span>
             </Link>
-            <div className="flex">
-              <Link href="/sign-in" className="text-xs font-semibold">Daftar</Link>
-              <Separator orientation="vertical" className="mx-2" />
-              <Link href="/sign-in" className="text-xs font-semibold">Log In</Link>
-            </div>
+            {user ? (
+              <Link href="/dashboard" className="flex items-center gap-2 text-xs font-semibold">
+                <User className="h-4 w-4" />
+                <span className="max-w-[140px] truncate">{user.name || user.email}</span>
+              </Link>
+            ) : (
+              <div className="flex">
+                <Link href="/sign-in" className="text-xs font-semibold">Daftar</Link>
+                <Separator orientation="vertical" className="mx-2" />
+                <Link href="/sign-in" className="text-xs font-semibold">Log In</Link>
+              </div>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-4 pt-4 pb-6">
@@ -92,7 +109,7 @@ export function AppHeader() {
             </Link>
           </div>
 
-          <div className="relative flex-1 max-w-3xl">
+          <div className="relative flex-1 w-auto px-5">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
               <Input
@@ -108,18 +125,20 @@ export function AppHeader() {
                 }}
                 className="pl-9 pr-20 h-11 rounded-full"
               />
-              <Button
-                size="sm"
-                onClick={() => {
-                  const trimmed = searchQuery.trim();
-                  lastQueryRef.current = "";
-                  router.push(trimmed ? `/explore?q=${encodeURIComponent(trimmed)}` : "/explore");
-                }}
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-9 px-4 rounded-full"
-              >
-                <Search className="h-4 w-4 mr-1" />
-                Cari
-              </Button>
+              {searchQuery.trim() && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    lastQueryRef.current = "";
+                    setSearchQuery("");
+                    router.push("/explore");
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 h-9 w-9 rounded-full p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
             </div>
 
             <div className="mt-2">

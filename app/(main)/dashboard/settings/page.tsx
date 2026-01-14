@@ -2,8 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Loader2, User, Share2, MessageSquare } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import { ProfileSettings } from "./components/profile-settings";
@@ -17,10 +16,14 @@ interface Brand {
   description: string | null;
   location: string | null;
   address: string | null;
+  district: string | null;
+  city: string | null;
+  province: string | null;
   phone: string | null;
   email: string | null;
   type: string;
   logoImage: string | null;
+  coverImage: string | null;
   operatingHours: OperatingHours | null;
   socialMedia: SocialMediaJson | null;
 }
@@ -44,31 +47,42 @@ export default function BrandSettingsPage() {
   const [brand, setBrand] = useState<Brand | null>(null);
   const [profileImage, setProfileImage] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [bannerImage, setBannerImage] = useState<File | null>(null);
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string>("");
+  const [bannerRemoved, setBannerRemoved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState("profile");
+  const [activeSection, setActiveSection] = useState("branding");
 
   const [formData, setFormData] = useState({
     brandName: "",
     slug: "",
     description: "",
-    category: "RENTAL",
-    location: "",
+    district: "",
+    city: "",
+    province: "",
+    addressDetail: "",
     phone: "",
     email: "",
-    address: "",
+    mondayEnabled: true,
     mondayOpen: "08:00",
     mondayClose: "17:00",
+    tuesdayEnabled: true,
     tuesdayOpen: "08:00",
     tuesdayClose: "17:00",
+    wednesdayEnabled: true,
     wednesdayOpen: "08:00",
     wednesdayClose: "17:00",
+    thursdayEnabled: true,
     thursdayOpen: "08:00",
     thursdayClose: "17:00",
+    fridayEnabled: true,
     fridayOpen: "08:00",
     fridayClose: "17:00",
+    saturdayEnabled: true,
     saturdayOpen: "08:00",
     saturdayClose: "17:00",
+    sundayEnabled: true,
     sundayOpen: "08:00",
     sundayClose: "17:00",
   });
@@ -97,29 +111,41 @@ export default function BrandSettingsPage() {
           const brandData = data.brands[0] as Brand;
           setBrand(brandData);
           setPreviewUrl(brandData.logoImage || "");
+          setBannerPreviewUrl(brandData.coverImage || "");
+          setBannerRemoved(false);
 
           const hours = brandData.operatingHours as OperatingHours | null;
+          const defaultEnabled = (day: keyof OperatingHours) =>
+            hours ? !!hours?.[day] : true;
           setFormData({
             brandName: brandData.name || "",
             slug: brandData.slug || "",
             description: brandData.description || "",
-            category: brandData.type || "RENTAL",
-            location: brandData.location || "",
+            district: brandData.district || "",
+            city: brandData.city || "",
+            province: brandData.province || "",
+            addressDetail: brandData.address || "",
             phone: brandData.phone || "",
             email: brandData.email || "",
-            address: brandData.address || "",
+            mondayEnabled: defaultEnabled("monday"),
             mondayOpen: hours?.monday?.open || "08:00",
             mondayClose: hours?.monday?.close || "17:00",
+            tuesdayEnabled: defaultEnabled("tuesday"),
             tuesdayOpen: hours?.tuesday?.open || "08:00",
             tuesdayClose: hours?.tuesday?.close || "17:00",
+            wednesdayEnabled: defaultEnabled("wednesday"),
             wednesdayOpen: hours?.wednesday?.open || "08:00",
             wednesdayClose: hours?.wednesday?.close || "17:00",
+            thursdayEnabled: defaultEnabled("thursday"),
             thursdayOpen: hours?.thursday?.open || "08:00",
             thursdayClose: hours?.thursday?.close || "17:00",
+            fridayEnabled: defaultEnabled("friday"),
             fridayOpen: hours?.friday?.open || "08:00",
             fridayClose: hours?.friday?.close || "17:00",
+            saturdayEnabled: defaultEnabled("saturday"),
             saturdayOpen: hours?.saturday?.open || "08:00",
             saturdayClose: hours?.saturday?.close || "17:00",
+            sundayEnabled: defaultEnabled("sunday"),
             sundayOpen: hours?.sunday?.open || "08:00",
             sundayClose: hours?.sunday?.close || "17:00",
           });
@@ -143,7 +169,7 @@ export default function BrandSettingsPage() {
     fetchBrand();
   }, [router]);
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -171,19 +197,37 @@ export default function BrandSettingsPage() {
     setPreviewUrl(URL.createObjectURL(file));
   };
 
+  const handleBannerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("Ukuran file maksimal 2MB");
+      return;
+    }
+
+    setBannerImage(file);
+    setBannerPreviewUrl(URL.createObjectURL(file));
+    setBannerRemoved(false);
+  };
+
   const handleRemoveImage = () => {
     setProfileImage(null);
     setPreviewUrl(brand?.logoImage || "");
   };
 
-  const uploadImage = async (): Promise<string | null> => {
-    if (!profileImage) return brand?.logoImage || null;
+  const handleRemoveBanner = () => {
+    setBannerImage(null);
+    setBannerPreviewUrl("");
+    setBannerRemoved(true);
+  };
 
+  const uploadFile = async (file: File, folder: string): Promise<string> => {
     setIsUploading(true);
     try {
       const formData = new FormData();
-      formData.append("file", profileImage);
-      formData.append("folder", "brands");
+      formData.append("file", file);
+      formData.append("folder", folder);
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -196,9 +240,6 @@ export default function BrandSettingsPage() {
       }
 
       return data.url;
-    } catch (err) {
-      console.error("Upload error:", err);
-      throw err;
     } finally {
       setIsUploading(false);
     }
@@ -213,31 +254,49 @@ export default function BrandSettingsPage() {
       // Upload image first if new one selected
       let logoUrl = brand?.logoImage || null;
       if (profileImage) {
-        logoUrl = await uploadImage();
+        logoUrl = await uploadFile(profileImage, `brand/${formData.slug}/logo`);
+      }
+
+      let coverImageUrl = brand?.coverImage || null;
+      if (bannerRemoved) {
+        coverImageUrl = null;
+      } else if (bannerImage) {
+        coverImageUrl = await uploadFile(bannerImage, `brand/${formData.slug}/banner`);
       }
 
       // Build operating hours object
-      const operatingHours = {
-        monday: { open: formData.mondayOpen, close: formData.mondayClose },
-        tuesday: { open: formData.tuesdayOpen, close: formData.tuesdayClose },
-        wednesday: { open: formData.wednesdayOpen, close: formData.wednesdayClose },
-        thursday: { open: formData.thursdayOpen, close: formData.thursdayClose },
-        friday: { open: formData.fridayOpen, close: formData.fridayClose },
-        saturday: { open: formData.saturdayOpen, close: formData.saturdayClose },
-        sunday: { open: formData.sundayOpen, close: formData.sundayClose },
-      };
+      const operatingHours = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"].reduce(
+        (acc, day) => {
+          const isEnabled = formData[`${day}Enabled` as keyof typeof formData];
+          if (isEnabled) {
+            acc[day] = {
+              open: formData[`${day}Open` as keyof typeof formData] as string,
+              close: formData[`${day}Close` as keyof typeof formData] as string,
+            };
+          }
+          return acc;
+        },
+        {} as Record<string, { open: string; close: string }>
+      );
+
+      const location = [formData.district, formData.city]
+        .filter(Boolean)
+        .join(", ");
 
       const payload = {
         name: formData.brandName,
         slug: formData.slug,
         description: formData.description,
-        type: formData.category,
-        location: formData.location,
-        address: formData.address,
+        location: location || null,
+        district: formData.district,
+        city: formData.city,
+        province: formData.province,
+        address: formData.addressDetail,
         phone: formData.phone,
         email: formData.email,
         logoImage: logoUrl,
-        operatingHours,
+        coverImage: coverImageUrl,
+        operatingHours: Object.keys(operatingHours).length ? operatingHours : null,
         socialMedia,
       };
 
@@ -259,13 +318,17 @@ export default function BrandSettingsPage() {
       }
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || "Gagal menyimpan");
-      }
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal menyimpan");
+        }
 
-      setBrand(data.brand);
-      setProfileImage(null);
-      setSuccess("Perubahan berhasil disimpan!");
+        setBrand(data.brand);
+        setProfileImage(null);
+        setBannerImage(null);
+        setBannerRemoved(false);
+        setPreviewUrl(data.brand?.logoImage || "");
+        setBannerPreviewUrl(data.brand?.coverImage || "");
+        setSuccess("Perubahan berhasil disimpan!");
       
       // Auto-hide success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
@@ -285,18 +348,18 @@ export default function BrandSettingsPage() {
     );
   }
 
+  const sections = [
+    { id: "branding", label: "Branding" },
+    { id: "basic", label: "Informasi Dasar" },
+    { id: "contact", label: "Kontak Brand" },
+    { id: "address", label: "Alamat Brand" },
+    { id: "hours", label: "Jam Operasional" },
+    { id: "social", label: "Media Sosial" },
+    { id: "whatsapp", label: "WhatsApp" },
+  ];
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4">
-        <h1 className="text-3xl font-bold mb-2">Pengaturan</h1>
-        <p className="text-muted-foreground">
-          Kelola informasi profil brand, media sosial, dan integrasi
-        </p>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 space-y-6">
@@ -312,46 +375,55 @@ export default function BrandSettingsPage() {
             </div>
           )}
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="profile" className="gap-2">
-            <User className="h-4 w-4" />
-            Profil
-          </TabsTrigger>
-          <TabsTrigger value="social" className="gap-2">
-            <Share2 className="h-4 w-4" />
-            Media Sosial
-          </TabsTrigger>
-          <TabsTrigger value="whatsapp" className="gap-2">
-            <MessageSquare className="h-4 w-4" />
-            WhatsApp
-          </TabsTrigger>
-        </TabsList>
+          <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
+            <aside className="h-fit">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
+                Pengaturan Brand
+              </p>
+              <div className="space-y-1 border-l border-border/60 pl-3">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    type="button"
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full rounded-md px-3 py-2 text-left text-sm transition ${
+                      activeSection === section.id
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {section.label}
+                  </button>
+                ))}
+              </div>
+            </aside>
 
-        <TabsContent value="profile" className="mt-6">
-          <ProfileSettings
-            brand={brand}
-            formData={formData}
-            previewUrl={previewUrl}
-            isUploading={isUploading}
-            onInputChange={handleInputChange}
-            onImageChange={handleImageChange}
-            onRemoveImage={handleRemoveImage}
-          />
-        </TabsContent>
+            <div className="space-y-6">
+              {["branding", "basic", "contact", "address", "hours"].includes(activeSection) && (
+                <ProfileSettings
+                  section={activeSection as "branding" | "basic" | "contact" | "address" | "hours"}
+                  formData={formData}
+                  previewUrl={previewUrl}
+                  bannerPreviewUrl={bannerPreviewUrl}
+                  isUploading={isUploading}
+                  onInputChange={handleInputChange}
+                  onImageChange={handleImageChange}
+                  onRemoveImage={handleRemoveImage}
+                  onBannerChange={handleBannerChange}
+                  onRemoveBanner={handleRemoveBanner}
+                />
+              )}
 
-        <TabsContent value="social" className="mt-6">
-          <SocialMediaSettings
-            socialMedia={socialMedia}
-            onSocialMediaChange={handleSocialMediaChange}
-          />
-        </TabsContent>
+              {activeSection === "social" && (
+                <SocialMediaSettings
+                  socialMedia={socialMedia}
+                  onSocialMediaChange={handleSocialMediaChange}
+                />
+              )}
 
-        <TabsContent value="whatsapp" className="mt-6">
-          <WhatsAppSettings />
-        </TabsContent>
-          </Tabs>
+              {activeSection === "whatsapp" && <WhatsAppSettings />}
+            </div>
+          </div>
         </div>
       </div>
 

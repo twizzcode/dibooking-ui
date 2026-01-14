@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { getProductDetail } from "@/lib/product-detail-data";
 import { ProductGallery } from "./components/product-gallery";
-import { BookingCard } from "./components/booking-card";
 import { ProductDescription } from "./components/product-description";
 import { OwnerInfo } from "./components/owner-info";
 import { ReviewSection } from "./components/review-section";
@@ -12,6 +11,7 @@ import { RelatedProducts } from "./components/related-products";
 import { BookingDrawerContent } from "./components/booking-drawer-content";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Drawer,
   DrawerContent,
@@ -27,10 +27,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Calendar as CalendarIcon, LogIn, Loader2 } from "lucide-react";
+import { ArrowLeft, Calendar as CalendarIcon, LogIn, Loader2, MapPin, Star } from "lucide-react";
 import { use } from "react";
 import { authClient } from "@/lib/auth-client";
 import { ProductDetail } from "@/types/product-detail";
+import Link from "next/link";
+import { Footer } from "@/components/home/footer";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface ProductPageProps {
   params: Promise<{ slug: string; productId: string }>;
@@ -64,6 +67,11 @@ function transformAPIProduct(apiProduct: any, brandSlug: string): ProductDetail 
       location: apiProduct.brand?.location || "",
       memberSince: apiProduct.brand?.createdAt ? `Sejak ${new Date(apiProduct.brand.createdAt).getFullYear()}` : "Member",
       verified: true,
+    },
+    brandContact: {
+      phone: apiProduct.brand?.phone || undefined,
+      email: apiProduct.brand?.email || undefined,
+      address: apiProduct.brand?.address || undefined,
     },
     reviews: [], // Will be fetched separately when implemented
     relatedProducts: [], // Will be fetched separately
@@ -165,7 +173,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen px-4 py-4">
+      <div className="min-h-screen px-4 py-4 mx-auto max-w-7xl">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div className="space-y-6">
             <Skeleton className="w-full aspect-[4/3] rounded-lg" />
@@ -207,72 +215,92 @@ export default function ProductPage({ params }: ProductPageProps) {
       </AlertDialog>
 
       {/* Main Content - 2 Column Grid */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 max-w-7xl">
+        <div className="mb-4">
+          <Button variant="ghost" size="lg" onClick={() => router.back()} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Kembali
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column: Gallery (full width until center) + Brand Info + Reviews */}
           <div className="space-y-6">
-          {/* Gallery - Full width */}
-          <ProductGallery images={product.images} name={product.name} thumbnailPosition="right" />
+            <div className="rounded-2xl border bg-background p-4">
+              <ProductGallery
+                images={product.images}
+                name={product.name}
+                thumbnailPosition="right"
+              />
+            </div>
 
-          {/* Brand Info Below Gallery */}
-          <OwnerInfo owner={product.owner} brandSlug={product.brandSlug} />
+            <OwnerInfo owner={product.owner} brandSlug={product.brandSlug} />
 
-          {/* Reviews Below Brand Info */}
-          <ReviewSection
-            reviews={product.reviews}
-            rating={product.rating}
-            reviewCount={product.reviewCount}
-          />
-        </div>
+            <div className="rounded-2xl border bg-background p-6">
+              <ReviewSection
+                reviews={product.reviews}
+                rating={product.rating}
+                reviewCount={product.reviewCount}
+              />
+            </div>
+          </div>
 
-        {/* Right Column: Product Details + CTA */}
-        <div className="space-y-6">
-          {/* Product Title, Price & CTA */}
-          <div className="space-y-4">
-            <div>
-              <h1 className="text-4xl font-bold mb-2">{product.name}</h1>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-3xl font-bold text-primary">
-                  Rp {product.price.toLocaleString("id-ID")}
-                </span>
-                <span className="text-muted-foreground">/{product.priceUnit}</span>
+          {/* Right Column: Product Details + CTA */}
+          <div className="space-y-6">
+            <div className="rounded-2xl border bg-background p-6 space-y-6">
+              <div className="space-y-3">
+                <h1 className="text-3xl lg:text-4xl font-bold">{product.name}</h1>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" />
+                    <span className="font-medium text-foreground">{product.rating}</span>
+                  </span>
+                  <span>·</span>
+                  <span>{product.reviewCount} ulasan</span>
+                  <span>·</span>
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4" />
+                    {product.location}
+                  </span>
+                </div>
               </div>
+
+              <div className="rounded-xl border bg-muted/30 p-4 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Harga sewa
+                  </p>
+                  <p className="text-2xl lg:text-3xl font-bold text-primary">
+                    Rp {product.price.toLocaleString("id-ID")}
+                  </p>
+                </div>
+                <span className="text-sm text-muted-foreground">
+                  /{product.priceUnit}
+                </span>
+              </div>
+
+              <Drawer open={isOpen} onOpenChange={setIsOpen} direction="right">
+                <Button
+                  size="lg"
+                  className="w-full gap-2"
+                  onClick={handleBookingClick}
+                  disabled={isAuthenticated === null}
+                >
+                  <CalendarIcon className="h-5 w-5" />
+                  {product.type === "tempat"
+                    ? "Cek Ketersediaan & Sewa"
+                    : "Ajukan Sewa"}
+                </Button>
+                <DrawerContent className="h-screen top-0 right-0 left-auto mt-0 w-full! max-w-full! sm:max-w-full! lg:w-1/2! lg:max-w-[50vw]! rounded-none">
+                  <BookingDrawerContent product={product} />
+                </DrawerContent>
+              </Drawer>
             </div>
 
-            {/* CTA Button */}
-            <Drawer open={isOpen} onOpenChange={setIsOpen} direction="right">
-              <Button 
-                size="lg" 
-                className="w-full gap-2"
-                onClick={handleBookingClick}
-                disabled={isAuthenticated === null}
-              >
-                <CalendarIcon className="h-5 w-5" />
-                {product.type === "tempat" ? "Cek Ketersediaan & Sewa" : "Ajukan Sewa"}
-              </Button>
-              <DrawerContent className="h-screen top-0 right-0 left-auto mt-0 w-full! max-w-full! sm:max-w-full! lg:w-1/2! lg:max-w-[50vw]! rounded-none">
-                <BookingDrawerContent product={product} />
-              </DrawerContent>
-            </Drawer>
-          </div>
-
-          {/* Rating & Location */}
-          <div className="flex items-center gap-4 text-muted-foreground border-y py-4">
-            <div className="flex items-center gap-1">
-              <span className="text-2xl">⭐</span>
-              <span className="font-semibold text-foreground">{product.rating}</span>
+            <div className="rounded-2xl border bg-background p-6">
+              <ProductDescription product={product} />
             </div>
-            <span>·</span>
-            <span className="underline cursor-pointer hover:text-foreground">
-              {product.reviewCount} ulasan
-            </span>
-            <span>·</span>
-            <span>{product.location}</span>
           </div>
-
-          {/* Description & Facilities */}
-          <ProductDescription product={product} />
-        </div>
         </div>
       </div>
 
@@ -294,6 +322,8 @@ export default function ProductPage({ params }: ProductPageProps) {
           </div>
         </DrawerTrigger>
       </Drawer>
+
+      <Footer />
     </div>
   );
 }

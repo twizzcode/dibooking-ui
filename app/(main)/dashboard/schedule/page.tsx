@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,22 +21,18 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   MapPin,
-  Phone,
-  Building2,
-  CreditCard,
   CheckCircle2,
   XCircle,
   AlertCircle,
   MessageSquare,
-  User,
-  ChevronLeft,
-  ChevronRight,
 } from "lucide-react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSameDay, isToday } from "date-fns";
+import { format } from "date-fns";
 import { id } from "date-fns/locale";
+import Calendar from "@/components/calendar/calendar";
+import type { CalendarEvent } from "@/components/calendar/calendar-types";
 
 interface Booking {
   id: string;
@@ -186,25 +182,22 @@ const paymentStatusConfig = {
 
 export default function SchedulePage() {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [mode, setMode] = useState<"month" | "week">("month");
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [filterProduct, setFilterProduct] = useState<string>("all");
 
-  const handlePrevMonth = () => setCurrentDate(subMonths(currentDate, 1));
-  const handleNextMonth = () => setCurrentDate(addMonths(currentDate, 1));
-  const handleToday = () => setCurrentDate(new Date());
-
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(currentDate);
-  const calendarDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
-
-  const getBookingsForDay = (date: Date) => {
+  const filteredBookings = useMemo(() => {
     return mockBookings.filter(
       (booking) =>
-        isSameDay(booking.startDate, date) &&
-        (filterProduct === "all" || booking.productName === filterProduct)
+        filterProduct === "all" || booking.productName === filterProduct
     );
-  };
+  }, [filterProduct]);
+
+  const bookingById = useMemo(() => {
+    return new Map(filteredBookings.map((booking) => [booking.id, booking]));
+  }, [filteredBookings]);
 
   const handleViewDetail = (booking: Booking) => {
     setSelectedBooking(booking);
@@ -213,132 +206,80 @@ export default function SchedulePage() {
 
   const products = Array.from(new Set(mockBookings.map((b) => b.productName)));
 
+  const statusColorMap: Record<Booking["status"], CalendarEvent["color"]> = {
+    upcoming: "blue",
+    completed: "emerald",
+    cancelled: "red",
+    pending: "orange",
+  };
+
+  const toDateTime = (baseDate: Date, time: string) => {
+    const [hours, minutes] = time.split(":").map(Number);
+    const date = new Date(baseDate);
+    date.setHours(hours || 0, minutes || 0, 0, 0);
+    return date;
+  };
+
+  const mappedEvents = useMemo<CalendarEvent[]>(() => {
+    return filteredBookings.map((booking) => ({
+      id: booking.id,
+      title: booking.productName,
+      start: toDateTime(booking.startDate, booking.startTime),
+      end: toDateTime(booking.endDate, booking.endTime),
+      color: statusColorMap[booking.status],
+    }));
+  }, [filteredBookings]);
+
+  useEffect(() => {
+    setEvents(mappedEvents);
+  }, [mappedEvents]);
+
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold mb-2">Jadwal Booking</h1>
-            <p className="text-muted-foreground">
-              Lihat dan kelola semua booking dalam kalender
-            </p>
-          </div>
-        </div>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 space-y-6">
           {/* Calendar Controls */}
-          <Card className="p-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="icon" onClick={handlePrevMonth}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button variant="outline" onClick={handleToday}>
-              Hari Ini
-            </Button>
-            <Button variant="outline" size="icon" onClick={handleNextMonth}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            <h2 className="text-xl font-semibold ml-4">
-              {format(currentDate, "MMMM yyyy", { locale: id })}
-            </h2>
-          </div>
-          <Select value={filterProduct} onValueChange={setFilterProduct}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="Filter Produk" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Semua Produk</SelectItem>
-              {products.map((product) => (
-                <SelectItem key={product} value={product}>
-                  {product}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Calendar Grid */}
-        <div className="border rounded-lg overflow-hidden">
-          {/* Weekday Headers */}
-          <div className="grid grid-cols-7 bg-accent">
-            {["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"].map((day) => (
-              <div
-                key={day}
-                className="p-2 text-center text-sm font-medium border-r last:border-r-0"
-              >
-                {day}
+          <Card className="p-4 space-y-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm font-medium">Kalender Booking</p>
+                <p className="text-xs text-muted-foreground">
+                  Klik event untuk melihat detail booking
+                </p>
               </div>
-            ))}
-          </div>
-
-          {/* Calendar Days */}
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, index) => {
-              const bookings = getBookingsForDay(day);
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              const isTodayDate = isToday(day);
-
-              return (
-                <div
-                  key={index}
-                  className={`min-h-[120px] p-2 border-r border-b last:border-r-0 ${
-                    !isCurrentMonth ? "bg-accent/30" : ""
-                  } ${isTodayDate ? "bg-blue-50 dark:bg-blue-950" : ""}`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className={`text-sm font-medium ${
-                        isTodayDate
-                          ? "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
-                          : !isCurrentMonth
-                          ? "text-muted-foreground"
-                          : ""
-                      }`}
-                    >
-                      {format(day, "d")}
-                    </span>
-                    {bookings.length > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {bookings.length}
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="space-y-1">
-                    {bookings.slice(0, 2).map((booking) => (
-                      <button
-                        key={booking.id}
-                        onClick={() => handleViewDetail(booking)}
-                        className={`w-full text-left p-1.5 rounded text-xs ${
-                          statusConfig[booking.status].color
-                        } text-white hover:opacity-80 transition-opacity`}
-                      >
-                        <p className="font-medium truncate">
-                          {booking.startTime} {booking.productName}
-                        </p>
-                        <p className="truncate opacity-90">
-                          {booking.customerName}
-                        </p>
-                      </button>
-                    ))}
-                    {bookings.length > 2 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{bookings.length - 2} lainnya
-                      </p>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </Card>
+              <Select value={filterProduct} onValueChange={setFilterProduct}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filter Produk" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Semua Produk</SelectItem>
+                  {products.map((product) => (
+                    <SelectItem key={product} value={product}>
+                      {product}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="border rounded-lg overflow-hidden bg-card">
+              <Calendar
+                events={events}
+                setEvents={setEvents}
+                mode={mode}
+                setMode={setMode}
+                date={currentDate}
+                setDate={setCurrentDate}
+                readOnly
+                onEventClick={(event) => {
+                  const booking = bookingById.get(event.id);
+                  if (booking) {
+                    handleViewDetail(booking);
+                  }
+                }}
+              />
+            </div>
+          </Card>
 
       {/* Booking Detail Drawer */}
       <Drawer open={isDrawerOpen} onOpenChange={setIsDrawerOpen} direction="right">
@@ -386,7 +327,7 @@ export default function SchedulePage() {
                           Tanggal
                         </p>
                         <p className="font-medium flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
+                          <CalendarIcon className="h-4 w-4" />
                           {format(selectedBooking.startDate, "dd MMMM yyyy", {
                             locale: id,
                           })}

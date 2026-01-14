@@ -6,6 +6,7 @@ export type Product = {
   slug?: string;
   brand: string;
   brandSlug?: string;
+  brandLogo?: string;
   category: string;
   type: ProductType;
   location: string;

@@ -6,6 +6,8 @@ export type CalendarProps = {
   date: Date
   setDate: (date: Date) => void
   calendarIconIsToday?: boolean
+  readOnly?: boolean
+  onEventClick?: (event: CalendarEvent) => void
 }
 
 export type CalendarContextType = CalendarProps & {

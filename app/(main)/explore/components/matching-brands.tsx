@@ -1,5 +1,4 @@
-import { Badge } from "@/components/ui/badge";
-import { Building2 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 interface BrandInfo {
@@ -7,6 +6,7 @@ interface BrandInfo {
   slug: string;
   location: string;
   productCount: number;
+  logoImage?: string;
 }
 
 interface MatchingBrandsProps {
@@ -26,8 +26,20 @@ export function MatchingBrands({ brands }: MatchingBrandsProps) {
             href={`/${brand.slug}`}
             className="flex items-center gap-3 p-4 border rounded-lg hover:border-primary hover:bg-primary/5 transition-all group"
           >
-            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
-              <Building2 className="w-6 h-6 text-primary" />
+            <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors overflow-hidden">
+              {brand.logoImage?.trim() ? (
+                <Image
+                  src={brand.logoImage}
+                  alt={brand.name}
+                  width={48}
+                  height={48}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-semibold text-primary">
+                  {brand.name.charAt(0).toUpperCase()}
+                </span>
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-sm group-hover:text-primary transition-colors truncate">

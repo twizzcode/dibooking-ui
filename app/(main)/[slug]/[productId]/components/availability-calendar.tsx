@@ -147,6 +147,7 @@ export function AvailabilityCalendar({ productId, onDateSelect }: AvailabilityCa
         date={date}
         setDate={handleDateChange}
         calendarIconIsToday={false}
+        readOnly
         />
       </div>
     </div>

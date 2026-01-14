@@ -15,6 +15,8 @@ export default function Calendar({
   date,
   setDate,
   calendarIconIsToday = true,
+  readOnly = false,
+  onEventClick,
 }: CalendarProps) {
   return (
     <CalendarProvider
@@ -25,12 +27,14 @@ export default function Calendar({
       date={date}
       setDate={setDate}
       calendarIconIsToday={calendarIconIsToday}
+      readOnly={readOnly}
+      onEventClick={onEventClick}
     >
       <CalendarHeader>
         <CalendarHeaderDate />
         <CalendarHeaderActions>
           <CalendarHeaderActionsMode />
-          <CalendarHeaderActionsAdd />
+          {!readOnly && <CalendarHeaderActionsAdd />}
         </CalendarHeaderActions>
       </CalendarHeader>
       <CalendarBody />

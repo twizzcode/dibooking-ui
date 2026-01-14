@@ -15,6 +15,7 @@ export interface ProductDetail {
   description: string;
   facilities: Facility[];
   owner: Owner;
+  brandContact?: BrandContact;
   reviews: Review[];
   relatedProducts: RelatedProduct[];
   specifications?: Specification[];
@@ -32,6 +33,12 @@ export interface Owner {
   location: string;
   memberSince: string;
   verified: boolean;
+}
+
+export interface BrandContact {
+  phone?: string;
+  email?: string;
+  address?: string;
 }
 
 export interface Review {

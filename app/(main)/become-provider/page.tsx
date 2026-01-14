@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   User,
   Building2,
@@ -21,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { onboardingSchema } from "@/lib/validation/brand";
 
 interface FormData {
   // Personal Info
@@ -31,20 +29,6 @@ interface FormData {
   // Business Info
   businessName: string;
   businessSlug: string;
-  businessType: "RENTAL" | "VENUE" | "BOTH";
-  businessDescription: string;
-  
-  // Optional Address
-  address: string;
-  city: string;
-  province: string;
-  postalCode: string;
-  
-  // Bank Info (optional for non-profit)
-  isNonProfit: boolean;
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountName: string;
 }
 
 interface FormErrors {
@@ -64,12 +48,6 @@ const steps = [
     description: "Detail brand Anda",
     icon: Building2,
   },
-  {
-    id: 3,
-    title: "Selesai",
-    description: "Pendaftaran berhasil",
-    icon: CheckCircle2,
-  },
 ];
 
 export default function BecomeProviderPage() {
@@ -79,6 +57,7 @@ export default function BecomeProviderPage() {
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
   const [errors, setErrors] = useState<FormErrors>({});
+  const [slugTouched, setSlugTouched] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({
     fullName: "",
@@ -86,16 +65,6 @@ export default function BecomeProviderPage() {
     phone: "",
     businessName: "",
     businessSlug: "",
-    businessType: "RENTAL",
-    businessDescription: "",
-    address: "",
-    city: "",
-    province: "",
-    postalCode: "",
-    isNonProfit: false,
-    bankName: "",
-    bankAccountNumber: "",
-    bankAccountName: "",
   });
 
   // Load user data on mount
@@ -123,7 +92,9 @@ export default function BecomeProviderPage() {
     const timeoutId = setTimeout(async () => {
       setIsCheckingSlug(true);
       try {
-        const res = await fetch(`/api/brands/check-slug?slug=${formData.businessSlug}`);
+        const res = await fetch(
+          `/api/brands/check-slug?slug=${encodeURIComponent(formData.businessSlug)}`
+        );
         const data = await res.json();
         setSlugAvailable(data.available);
       } catch {
@@ -136,11 +107,26 @@ export default function BecomeProviderPage() {
     return () => clearTimeout(timeoutId);
   }, [formData.businessSlug]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
+  const normalizeSlug = (value: string) =>
+    value
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-");
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData((prev) => {
+      if (name === "businessName" && !slugTouched) {
+        return {
+          ...prev,
+          businessName: value,
+          businessSlug: normalizeSlug(value),
+        };
+      }
+      return { ...prev, [name]: value };
+    });
     // Clear error when user types
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
@@ -151,65 +137,45 @@ export default function BecomeProviderPage() {
     // Only allow lowercase letters, numbers, and hyphens
     const value = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
     setFormData((prev) => ({ ...prev, businessSlug: value }));
+    if (!slugTouched) {
+      setSlugTouched(true);
+    }
     if (errors.businessSlug) {
       setErrors((prev) => ({ ...prev, businessSlug: "" }));
     }
-  };
-
-  const handleSelectChange = (name: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors((prev) => ({ ...prev, [name]: "" }));
-    }
-  };
-
-  const handleCheckboxChange = (checked: boolean) => {
-    setFormData((prev) => ({ ...prev, isNonProfit: checked }));
   };
 
   const validateStep = (step: number): boolean => {
     const newErrors: FormErrors = {};
 
     if (step === 1) {
-      if (!formData.fullName.trim()) {
-        newErrors.fullName = "Nama lengkap wajib diisi";
-      }
-      if (!formData.email.trim()) {
-        newErrors.email = "Email wajib diisi";
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-        newErrors.email = "Format email tidak valid";
-      }
-      if (!formData.phone.trim()) {
-        newErrors.phone = "Nomor telepon wajib diisi";
+      const result = onboardingSchema
+        .pick({ fullName: true, email: true, phone: true })
+        .safeParse(formData);
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          const key = issue.path[0];
+          if (typeof key === "string") {
+            newErrors[key] = issue.message;
+          }
+        }
       }
     }
 
     if (step === 2) {
-      if (!formData.businessName.trim()) {
-        newErrors.businessName = "Nama bisnis wajib diisi";
+      const result = onboardingSchema
+        .pick({ businessName: true, businessSlug: true })
+        .safeParse(formData);
+      if (!result.success) {
+        for (const issue of result.error.issues) {
+          const key = issue.path[0];
+          if (typeof key === "string") {
+            newErrors[key] = issue.message;
+          }
+        }
       }
-      if (!formData.businessSlug.trim()) {
-        newErrors.businessSlug = "Slug wajib diisi";
-      } else if (formData.businessSlug.length < 3) {
-        newErrors.businessSlug = "Slug minimal 3 karakter";
-      } else if (slugAvailable === false) {
+      if (slugAvailable === false) {
         newErrors.businessSlug = "Slug sudah digunakan";
-      }
-      if (!formData.businessDescription.trim()) {
-        newErrors.businessDescription = "Deskripsi bisnis wajib diisi";
-      }
-      
-      // Bank info required if not non-profit
-      if (!formData.isNonProfit) {
-        if (!formData.bankName.trim()) {
-          newErrors.bankName = "Nama bank wajib diisi";
-        }
-        if (!formData.bankAccountNumber.trim()) {
-          newErrors.bankAccountNumber = "Nomor rekening wajib diisi";
-        }
-        if (!formData.bankAccountName.trim()) {
-          newErrors.bankAccountName = "Nama pemilik rekening wajib diisi";
-        }
       }
     }
 
@@ -234,25 +200,31 @@ export default function BecomeProviderPage() {
   const handleSubmit = async () => {
     setIsLoading(true);
     try {
+      const parsed = onboardingSchema.safeParse(formData);
+      if (!parsed.success) {
+        const newErrors: FormErrors = {};
+        for (const issue of parsed.error.issues) {
+          const key = issue.path[0];
+          if (typeof key === "string") {
+            newErrors[key] = issue.message;
+          }
+        }
+        if (slugAvailable === false) {
+          newErrors.businessSlug = "Slug sudah digunakan";
+        }
+        setErrors(newErrors);
+        return;
+      }
+
       const response = await fetch("/api/brands", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: formData.businessName,
-          slug: formData.businessSlug,
-          type: formData.businessType,
-          description: formData.businessDescription,
-          address: formData.address || null,
-          city: formData.city || null,
-          province: formData.province || null,
-          postalCode: formData.postalCode || null,
-          isNonProfit: formData.isNonProfit,
-          bankInfo: formData.isNonProfit ? null : {
-            bankName: formData.bankName,
-            accountNumber: formData.bankAccountNumber,
-            accountName: formData.bankAccountName,
-          },
-          phone: formData.phone,
+          name: parsed.data.businessName,
+          slug: parsed.data.businessSlug,
+          phone: parsed.data.phone,
+          email: parsed.data.email,
+          ownerName: parsed.data.fullName,
         }),
       });
 
@@ -261,8 +233,7 @@ export default function BecomeProviderPage() {
         throw new Error(data.error || "Gagal mendaftarkan brand");
       }
 
-      // Move to completion step
-      setCurrentStep(3);
+      router.push("/dashboard?onboard=1");
     } catch (error) {
       setErrors({
         submit: error instanceof Error ? error.message : "Terjadi kesalahan",
@@ -330,7 +301,7 @@ export default function BecomeProviderPage() {
           Masukkan data diri Anda sebagai pemilik brand
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-5">
         <div className="space-y-2">
           <Label htmlFor="fullName">
             Nama Lengkap <span className="text-destructive">*</span>
@@ -341,7 +312,7 @@ export default function BecomeProviderPage() {
             value={formData.fullName}
             onChange={handleInputChange}
             placeholder="Masukkan nama lengkap"
-            className={errors.fullName ? "border-destructive" : ""}
+            className={`h-11 text-base px-3 ${errors.fullName ? "border-destructive" : ""}`}
           />
           {errors.fullName && (
             <p className="text-sm text-destructive flex items-center gap-1">
@@ -362,7 +333,7 @@ export default function BecomeProviderPage() {
             value={formData.email}
             onChange={handleInputChange}
             placeholder="email@example.com"
-            className={errors.email ? "border-destructive" : ""}
+            className={`h-11 text-base px-3 ${errors.email ? "border-destructive" : ""}`}
           />
           {errors.email && (
             <p className="text-sm text-destructive flex items-center gap-1">
@@ -383,7 +354,7 @@ export default function BecomeProviderPage() {
             value={formData.phone}
             onChange={handleInputChange}
             placeholder="08xxxxxxxxxx"
-            className={errors.phone ? "border-destructive" : ""}
+            className={`h-11 text-base px-3 ${errors.phone ? "border-destructive" : ""}`}
           />
           {errors.phone && (
             <p className="text-sm text-destructive flex items-center gap-1">
@@ -398,7 +369,6 @@ export default function BecomeProviderPage() {
 
   const renderBusinessInfoStep = () => (
     <div className="space-y-6">
-      {/* Business Details Card */}
       <Card>
         <CardHeader>
           <CardTitle>Informasi Bisnis</CardTitle>
@@ -406,7 +376,7 @@ export default function BecomeProviderPage() {
             Detail brand yang akan Anda daftarkan
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           <div className="space-y-2">
             <Label htmlFor="businessName">
               Nama Bisnis <span className="text-destructive">*</span>
@@ -417,7 +387,7 @@ export default function BecomeProviderPage() {
               value={formData.businessName}
               onChange={handleInputChange}
               placeholder="Contoh: Studio Kreatif Jakarta"
-              className={errors.businessName ? "border-destructive" : ""}
+              className={`h-11 text-base px-3 ${errors.businessName ? "border-destructive" : ""}`}
             />
             {errors.businessName && (
               <p className="text-sm text-destructive flex items-center gap-1">
@@ -442,7 +412,7 @@ export default function BecomeProviderPage() {
                   value={formData.businessSlug}
                   onChange={handleSlugChange}
                   placeholder="studio-kreatif"
-                  className={`pr-10 ${errors.businessSlug ? "border-destructive" : ""}`}
+                  className={`h-11 text-base px-3 pr-10 ${errors.businessSlug ? "border-destructive" : ""}`}
                 />
                 <div className="absolute right-3 top-1/2 -translate-y-1/2">
                   {isCheckingSlug && (
@@ -468,194 +438,6 @@ export default function BecomeProviderPage() {
             )}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="businessType">
-              Jenis Bisnis <span className="text-destructive">*</span>
-            </Label>
-            <Select
-              value={formData.businessType}
-              onValueChange={(value) => handleSelectChange("businessType", value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih jenis bisnis" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="RENTAL">Rental (Penyewaan Barang)</SelectItem>
-                <SelectItem value="VENUE">Venue (Penyewaan Tempat)</SelectItem>
-                <SelectItem value="BOTH">Keduanya</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="businessDescription">
-              Deskripsi Bisnis <span className="text-destructive">*</span>
-            </Label>
-            <Textarea
-              id="businessDescription"
-              name="businessDescription"
-              value={formData.businessDescription}
-              onChange={handleInputChange}
-              placeholder="Ceritakan tentang bisnis Anda..."
-              rows={4}
-              className={errors.businessDescription ? "border-destructive" : ""}
-            />
-            {errors.businessDescription && (
-              <p className="text-sm text-destructive flex items-center gap-1">
-                <AlertCircle className="w-4 h-4" />
-                {errors.businessDescription}
-              </p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Optional Address Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Alamat Bisnis
-            <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-1 rounded">
-              Opsional
-            </span>
-          </CardTitle>
-          <CardDescription>
-            Alamat ini akan ditampilkan di halaman brand Anda
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="address">Alamat Lengkap</Label>
-            <Textarea
-              id="address"
-              name="address"
-              value={formData.address}
-              onChange={handleInputChange}
-              placeholder="Jl. Contoh No. 123"
-              rows={2}
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">Kota</Label>
-              <Input
-                id="city"
-                name="city"
-                value={formData.city}
-                onChange={handleInputChange}
-                placeholder="Jakarta"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="province">Provinsi</Label>
-              <Input
-                id="province"
-                name="province"
-                value={formData.province}
-                onChange={handleInputChange}
-                placeholder="DKI Jakarta"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="postalCode">Kode Pos</Label>
-            <Input
-              id="postalCode"
-              name="postalCode"
-              value={formData.postalCode}
-              onChange={handleInputChange}
-              placeholder="12345"
-              className="w-32"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Bank Info Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Informasi Rekening</CardTitle>
-          <CardDescription>
-            Untuk menerima pembayaran dari pemesanan
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center space-x-2">
-            <Checkbox
-              id="isNonProfit"
-              checked={formData.isNonProfit}
-              onCheckedChange={handleCheckboxChange}
-            />
-            <Label htmlFor="isNonProfit" className="text-sm font-normal cursor-pointer">
-              Ini adalah organisasi non-profit (tidak memerlukan informasi bank)
-            </Label>
-          </div>
-
-          {!formData.isNonProfit && (
-            <div className="space-y-4 pt-4 border-t">
-              <div className="space-y-2">
-                <Label htmlFor="bankName">
-                  Nama Bank <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="bankName"
-                  name="bankName"
-                  value={formData.bankName}
-                  onChange={handleInputChange}
-                  placeholder="Contoh: BCA, Mandiri, BNI"
-                  className={errors.bankName ? "border-destructive" : ""}
-                />
-                {errors.bankName && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.bankName}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bankAccountNumber">
-                  Nomor Rekening <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="bankAccountNumber"
-                  name="bankAccountNumber"
-                  value={formData.bankAccountNumber}
-                  onChange={handleInputChange}
-                  placeholder="1234567890"
-                  className={errors.bankAccountNumber ? "border-destructive" : ""}
-                />
-                {errors.bankAccountNumber && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.bankAccountNumber}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="bankAccountName">
-                  Nama Pemilik Rekening <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="bankAccountName"
-                  name="bankAccountName"
-                  value={formData.bankAccountName}
-                  onChange={handleInputChange}
-                  placeholder="Sesuai buku tabungan"
-                  className={errors.bankAccountName ? "border-destructive" : ""}
-                />
-                {errors.bankAccountName && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.bankAccountName}
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
         </CardContent>
       </Card>
 
@@ -670,63 +452,20 @@ export default function BecomeProviderPage() {
     </div>
   );
 
-  const renderCompletionStep = () => (
-    <Card>
-      <CardContent className="pt-8 pb-8 text-center space-y-6">
-        <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center">
-          <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400" />
-        </div>
-        
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold">Pendaftaran Berhasil!</h2>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Selamat! Brand Anda <strong>{formData.businessName}</strong> telah berhasil didaftarkan.
-            Anda sekarang dapat mengelola brand Anda melalui dashboard.
-          </p>
-        </div>
-
-        <div className="p-4 bg-muted rounded-lg inline-block">
-          <p className="text-sm text-muted-foreground mb-1">URL Brand Anda:</p>
-          <p className="font-mono text-primary">
-            dibooking.id/{formData.businessSlug}
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
-          <Button
-            onClick={() => router.push("/dashboard")}
-            className="gap-2"
-          >
-            Ke Dashboard
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => router.push(`/${formData.businessSlug}`)}
-          >
-            Lihat Halaman Brand
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 1:
         return renderPersonalInfoStep();
       case 2:
         return renderBusinessInfoStep();
-      case 3:
-        return renderCompletionStep();
       default:
         return null;
     }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto py-8 px-4">
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="container max-w-3xl w-full mx-auto py-10 px-4">
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Daftar Sebagai Provider</h1>
@@ -742,7 +481,7 @@ export default function BecomeProviderPage() {
         {renderCurrentStep()}
 
         {/* Navigation Buttons */}
-        {currentStep < 3 && (
+        {currentStep <= steps.length && (
           <div className="flex justify-between mt-6">
             <Button
               variant="outline"
@@ -766,7 +505,7 @@ export default function BecomeProviderPage() {
               ) : currentStep === 2 ? (
                 <>
                   Daftar Sekarang
-                  <CheckCircle2 className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>

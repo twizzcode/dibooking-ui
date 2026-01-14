@@ -35,6 +35,7 @@ model User {
   accounts      Account[]
   brands        Brand[]
   bookings      Booking[]
+  bookingDocuments BookingDocument[]
 
   @@unique([email])
   @@map("user")
@@ -101,10 +102,21 @@ enum BrandType {
   SERVICE
 }
 
+enum Plan {
+  FREE
+  BASIC
+  PRO
+}
+
 enum ProductType {
   VENUE
   EQUIPMENT
   PACKAGE
+}
+
+enum RentalMode {
+  RENT
+  BORROW
 }
 
 enum BookingStatus {
@@ -127,6 +139,7 @@ model Brand {
   description     String?
   location        String?   // Now optional
   address         String?   // Now optional
+  district        String?
   city            String?
   province        String?
   postalCode      String?
@@ -144,6 +157,8 @@ model Brand {
   isNonProfit     Boolean   @default(false)
   bankInfo        Json?     // { bankName, accountNumber, accountName }
   isActive        Boolean   @default(true)
+  plan            Plan      @default(FREE)
+  settings        Json?     // booking_mode, pricing_mode, duration_mode, etc
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -164,8 +179,12 @@ model Product {
   features    String[]
   price       Int
   priceUnit   String      @default("hari") // "hari", "jam", "event"
+  rentalMode  RentalMode  @default(RENT)
+  loanDocumentUrl String?
+  loanDocumentRequired Boolean @default(false)
   images      String[]
   type        ProductType
+  stock       Int?
   capacity    String?
   size        String?
   isActive    Boolean     @default(true)
@@ -175,6 +194,7 @@ model Product {
   brandId      String
   brand        Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
   bookings     Booking[]
+  bookingLines BookingLine[]
   availability Availability[]
 
   @@index([brandId])
@@ -200,16 +220,50 @@ model Booking {
 
   userId    String?
   user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   brandId   String
   brand     Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  lines     BookingLine[]
+  documents BookingDocument[]
 
   @@index([userId])
-  @@index([productId])
   @@index([brandId])
+  @@index([productId])
+  @@index([brandId, startDate, endDate, status])
   @@index([bookingCode])
   @@map("booking")
+}
+
+model BookingLine {
+  id        String   @id @default(cuid())
+  bookingId String
+  productId String
+  quantity  Int      @default(1)
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@index([productId])
+  @@map("booking_line")
+}
+
+model BookingDocument {
+  id         String   @id @default(cuid())
+  bookingId  String
+  fileUrl    String
+  fileName   String
+  mimeType   String   @default("application/pdf")
+  uploadedBy String?
+  createdAt  DateTime @default(now())
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  uploader User?   @relation(fields: [uploadedBy], references: [id], onDelete: SetNull)
+
+  @@index([bookingId])
+  @@index([uploadedBy])
+  @@map("booking_document")
 }
 
 model Availability {

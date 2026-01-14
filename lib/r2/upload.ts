@@ -10,6 +10,7 @@ const ALLOWED_MIME_TYPES = [
   "image/png",
   "image/webp",
   "image/gif",
+  "application/pdf",
 ];
 
 export interface UploadResult {
@@ -53,20 +54,24 @@ export async function uploadImage(
     const buffer = Buffer.from(arrayBuffer);
     const originalSize = buffer.length;
 
-    // Validate image
-    if (!(await isValidImage(buffer))) {
-      return {
-        success: false,
-        error: "Invalid or corrupted image file",
-      };
+    const isPdf = file.type === "application/pdf";
+    if (!isPdf) {
+      // Validate image
+      if (!(await isValidImage(buffer))) {
+        return {
+          success: false,
+          error: "Invalid or corrupted image file",
+        };
+      }
     }
 
-    // Optimize image
-    const optimizedBuffer = await optimizeImage(buffer);
+    // Optimize image (skip for PDF)
+    const optimizedBuffer = isPdf ? buffer : await optimizeImage(buffer);
     const optimizedSize = optimizedBuffer.length;
 
     // Generate unique key
-    const key = `${folder}/${uuidv4()}.webp`;
+    const extension = isPdf ? "pdf" : "webp";
+    const key = `${folder}/${uuidv4()}.${extension}`;
 
     // Upload to R2
     await r2Client.send(
@@ -74,7 +79,7 @@ export async function uploadImage(
         Bucket: R2_BUCKET,
         Key: key,
         Body: optimizedBuffer,
-        ContentType: "image/webp",
+        ContentType: isPdf ? "application/pdf" : "image/webp",
         CacheControl: "public, max-age=31536000", // 1 year
       })
     );

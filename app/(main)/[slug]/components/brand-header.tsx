@@ -20,12 +20,12 @@ export function BrandHeader({ brand }: BrandHeaderProps) {
   return (
     <div className="relative">
       {/* Cover Image */}
-      <div className="aspect-[3/1] md:aspect-[4/1] bg-accent relative overflow-hidden">
+      <div className="aspect-[4/1] md:aspect-[4/1] bg-accent relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background/50" />
       </div>
 
       {/* Profile Card */}
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative">
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-20 relative">
         <Card className="p-6">
           <div className="flex flex-col md:flex-row gap-6">
             {/* Logo/Avatar */}

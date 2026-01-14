@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { brandCreateSchema } from "@/lib/validation/brand";
 
 // GET /api/brands - List all brands or user's brands
 export async function GET(request: NextRequest) {
@@ -86,12 +87,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    const parsed = brandCreateSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: parsed.error.errors[0]?.message || "Invalid payload" },
+        { status: 400 }
+      );
+    }
+
     const {
       name,
       slug,
       description,
       location,
       address,
+      district,
       city,
       province,
       postalCode,
@@ -105,19 +115,13 @@ export async function POST(request: NextRequest) {
       socialMedia,
       isNonProfit,
       bankInfo,
-    } = body;
-
-    // Validate required fields (only name and slug are required now)
-    if (!name || !slug) {
-      return NextResponse.json(
-        { error: "Missing required fields: name, slug" },
-        { status: 400 }
-      );
-    }
+      ownerName,
+      timeZone,
+    } = parsed.data;
 
     // Check if slug is already taken
     const existingBrand = await prisma.brand.findUnique({
-      where: { slug },
+      where: { slug: slug.toLowerCase() },
     });
 
     if (existingBrand) {
@@ -128,29 +132,32 @@ export async function POST(request: NextRequest) {
     }
 
     // Build location string from city/province if not provided
-    const computedLocation = location || [city, province].filter(Boolean).join(", ") || null;
+    const computedLocation =
+      location || [city, province].filter(Boolean).join(", ") || null;
 
     // Create brand
     const brand = await prisma.brand.create({
       data: {
         name,
-        slug: slug.toLowerCase().replace(/\s+/g, "-"),
-        description,
+        slug: slug.toLowerCase(),
+        description: description || null,
         location: computedLocation,
-        address,
-        city,
-        province,
-        postalCode,
-        phone,
-        email,
-        website,
-        coverImage,
-        logoImage,
+        address: address || null,
+        district: district || null,
+        city: city || null,
+        province: province || null,
+        postalCode: postalCode || null,
+        phone: phone || null,
+        email: email || null,
+        website: website || null,
+        coverImage: coverImage || null,
+        logoImage: logoImage || null,
         type: type?.toUpperCase() || "RENTAL",
         operatingHours,
         socialMedia,
         isNonProfit: isNonProfit || false,
         bankInfo,
+        settings: timeZone ? { timeZone } : undefined,
         ownerId: session.user.id,
       },
       include: {
@@ -169,6 +176,13 @@ export async function POST(request: NextRequest) {
       await prisma.user.update({
         where: { id: session.user.id },
         data: { role: "PROVIDER" },
+      });
+    }
+
+    if (ownerName && ownerName !== session.user.name) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { name: ownerName },
       });
     }
 

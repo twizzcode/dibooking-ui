@@ -305,16 +305,6 @@ export default function BookingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
-      <div className="border-b bg-background">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-4">
-          <h1 className="text-3xl font-bold mb-2">Kelola Booking</h1>
-          <p className="text-muted-foreground">
-            Terima atau tolak permintaan booking dari pelanggan
-          </p>
-        </div>
-      </div>
-
       {/* Content Area */}
       <div className="flex-1 overflow-auto">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl py-6 space-y-6">

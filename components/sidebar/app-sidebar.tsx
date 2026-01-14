@@ -33,7 +33,7 @@ import {
 import { Button } from "../ui/button"
 import Image from "next/image"
 import { authClient } from "@/lib/auth-client"
-import { useRouter } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
 
 interface Brand {
@@ -41,6 +41,7 @@ interface Brand {
   name: string
   logoImage: string | null
   type: string
+  slug?: string | null
   ownerId: string
   owner?: {
     id: string
@@ -54,7 +55,7 @@ interface Brand {
 const data = {
   navMain: [
     {
-      title: "Settings",
+      title: "Pengaturan",
       url: "/dashboard/settings",
       icon: Settings2,
       isActive: true,
@@ -81,18 +82,29 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const router = useRouter()
+  const pathname = usePathname()
   const [session, setSession] = React.useState<any>(null)
   const [loading, setLoading] = React.useState(true)
   const [brand, setBrand] = React.useState<Brand | null>(null)
 
+  const refreshSession = React.useCallback(async () => {
+    const { data } = await authClient.getSession()
+    setSession(data)
+  }, [])
+
   React.useEffect(() => {
     const getSession = async () => {
-      const { data } = await authClient.getSession()
-      setSession(data)
+      await refreshSession()
       setLoading(false)
     }
     getSession()
-  }, []) // Empty dependency array ensures this only runs once
+  }, [refreshSession])
+
+  React.useEffect(() => {
+    if (!loading) {
+      refreshSession()
+    }
+  }, [pathname, loading, refreshSession])
 
   // Fetch brand when user is provider
   React.useEffect(() => {
@@ -205,7 +217,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ) : (
           <>
             <div className="p-2 mt-4">
-              <SidebarGroupLabel>Admin Menu</SidebarGroupLabel>
+              <SidebarGroupLabel>Menu Admin</SidebarGroupLabel>
               <TeamSwitcher 
                 brand={brand} 
                 onAddAdmin={() => {
@@ -214,7 +226,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 }}
               />
             </div>
-            <NavMain items={data.navMain} />
+            <NavMain items={data.navMain} brandSlug={brand?.slug} />
           </>
         )}
       </SidebarContent>

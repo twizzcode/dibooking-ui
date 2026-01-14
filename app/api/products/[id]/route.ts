@@ -78,6 +78,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       type,
       capacity,
       size,
+      stock,
+      rentalMode,
+      loanDocumentUrl,
+      loanDocumentRequired,
       isActive,
     } = body;
 
@@ -93,6 +97,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(type && { type: type.toUpperCase() }),
         ...(capacity !== undefined && { capacity }),
         ...(size !== undefined && { size }),
+        ...(stock !== undefined && { stock }),
+        ...(rentalMode && { rentalMode }),
+        ...(loanDocumentUrl !== undefined && { loanDocumentUrl }),
+        ...(loanDocumentRequired !== undefined && { loanDocumentRequired }),
         ...(isActive !== undefined && { isActive }),
       },
       include: {

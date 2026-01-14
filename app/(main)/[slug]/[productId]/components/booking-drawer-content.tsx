@@ -385,21 +385,35 @@ export function BookingDrawerContent({ product }: BookingDrawerContentProps) {
               </div>
 
               <div className="bg-accent p-6 rounded-lg text-left space-y-3">
-                <h4 className="font-semibold">Informasi Kontak Penyedia:</h4>
+                <h4 className="font-semibold">Informasi Kontak Brand:</h4>
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Nama:</span>
-                    <span className="font-semibold">{product.owner.name}</span>
+                    <span className="text-muted-foreground">Brand:</span>
+                    <span className="font-semibold">{product.brand}</span>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground">Lokasi:</span>
-                    <span>{product.owner.location}</span>
-                  </div>
+                  {product.brandContact?.phone && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Telepon:</span>
+                      <span>{product.brandContact.phone}</span>
+                    </div>
+                  )}
+                  {product.brandContact?.email && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Email:</span>
+                      <span>{product.brandContact.email}</span>
+                    </div>
+                  )}
+                  {product.brandContact?.address && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">Alamat:</span>
+                      <span>{product.brandContact.address}</span>
+                    </div>
+                  )}
                 </div>
                 
                 <Button className="w-full mt-4" size="lg">
                   <MessageSquare className="h-4 w-4 mr-2" />
-                  Hubungi Penyedia
+                  Hubungi Brand
                 </Button>
               </div>
             </div>
